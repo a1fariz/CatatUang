@@ -1,0 +1,63 @@
+name: Backend
+on:
+  push:
+    paths: ['backend/**', '.github/workflows/backend.yml']
+  pull_request:
+    paths: ['backend/**', '.github/workflows/backend.yml']
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:18-bookworm
+        env:
+          POSTGRES_USER: catatuang
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U catatuang -d postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 12
+    env:
+      TEST_DATABASE_URL: postgres://catatuang:ci_only_password@127.0.0.1:5432/postgres?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/openapi.mjs
+      - run: git diff --exit-code -- docs/openapi.json
+      - run: npx --yes @redocly/cli@2.71.0 lint docs/openapi.json --format summary
+      - run: test -z "$(gofmt -l cmd internal migrations)"
+      - run: go mod verify
+      - run: go vet ./...
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      - run: go test -race -count=1 -coverpkg=./internal/... -coverprofile=coverage.out ./...
+      - run: go build ./cmd/...
+      - run: docker build -t catatuang-backend:ci .
+      - name: Container startup and readiness
+        env:
+          DATABASE_URL: postgres://catatuang:ci_only_password@127.0.0.1:5432/postgres?sslmode=disable
+        run: |
+          docker run --rm --network host -e DATABASE_URL --entrypoint /app/migrate catatuang-backend:ci up
+          docker run --rm --network host -e DATABASE_URL --entrypoint /app/migrate catatuang-backend:ci status
+          docker run -d --name catatuang-ci --network host -e DATABASE_URL -e HTTP_ADDR=127.0.0.1:8080 catatuang-backend:ci
+          trap 'docker logs catatuang-ci; docker rm -f catatuang-ci' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8080/readyz; then break; fi
+            sleep 1
+          done
+          docker exec catatuang-ci /app/healthcheck
+          curl --fail --silent http://127.0.0.1:8080/healthz
+          curl --fail --silent http://127.0.0.1:8080/v1
+          docker stop --time 15 catatuang-ci
+          test "$(docker inspect -f '{{.State.ExitCode}}' catatuang-ci)" = 0
