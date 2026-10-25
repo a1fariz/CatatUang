@@ -48,6 +48,9 @@ class FakeAuthGateway implements AuthGateway {
   AuthFailure? authFailure;
   AuthFailure? meFailure;
   AuthFailure? logoutFailure;
+  AuthFailure? passwordFailure;
+  Completer<void>? pendingPasswordChange;
+  int passwordChanges = 0;
   AuthSession? issued;
   AuthUser currentUser = testUser;
   Completer<AuthSession>? pendingAuthentication;
@@ -87,5 +90,16 @@ class FakeAuthGateway implements AuthGateway {
   @override
   void close() {
     closed = true;
+  }
+
+  @override
+  Future<void> changePassword(
+    String token,
+    String currentPassword,
+    String newPassword,
+  ) async {
+    passwordChanges++;
+    await pendingPasswordChange?.future;
+    if (passwordFailure != null) throw passwordFailure!;
   }
 }

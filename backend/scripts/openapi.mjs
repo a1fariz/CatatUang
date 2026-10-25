@@ -83,6 +83,8 @@ paths['/v1/sync/transactions']={
 };
 paths['/v1/sync/transactions/{id}']={parameters:[idParam],get:{...auth,operationId:'getTransactionSyncSnapshot',description:'Current account-owned snapshot, including soft deletions, for conflict resolution.',responses:{200:response('SyncRecord'),...fail(401,404,422,500,503)}},head:{...auth,operationId:'getTransactionSyncSnapshotHead',responses:{200:response(null),...fail(401,404,422,500,503)}}};
 schemas.SyncState=object({dataset_id:uuid});
+schemas.PasswordChange=object({current_password:schemas.Credentials.properties.password,new_password:{...schemas.Credentials.properties.password,description:'Must differ from current_password. At least 15 Unicode characters and at most 128 UTF-8 bytes. Whitespace is preserved.'}});
+paths['/v1/auth/change-password']={post:{...auth,operationId:'changePassword',requestBody:body('PasswordChange'),description:'Verifies current password and current session, changes Argon2id hash, and atomically revokes every other session. The requesting token and its existing expiry are retained. Incorrect current password is 422 and does not revoke the current session. Password-change attempts have separate per-IP/per-account 20-attempt, 15-minute buckets. Never retry automatically after an uncertain response.',responses:{204:response(null,'Password changed; other sessions revoked'),...fail(400,401,409,413,415,422,429,500,503)}}};
 paths['/v1/sync/state']={get:{...auth,operationId:'getSyncState',description:'Dataset identity for the current server. Pin on first use only; a changed identity requires reconciliation, never silent cursor reset.',responses:{200:response('SyncState'),...fail(401,422,500,503)}},head:{...auth,operationId:'getSyncStateHead',responses:{200:response(null),...fail(401,422,500,503)}}};
 for(const route of ['/v1/sync/transactions','/v1/sync/transactions/{id}']) {
  paths[route].parameters=[...(paths[route].parameters??[]),{name:'X-Sync-Dataset',in:'header',required:true,schema:uuid,description:'Pinned dataset_id from /v1/sync/state. Changed dataset returns 409 sync_reset_required, including receipt replays. Missing header returns 428 sync_dataset_required.'}];
@@ -101,6 +103,6 @@ for (const item of Object.values(paths)) {
 }
 const specification={openapi:'3.1.0',info:{title:'Catat Uang API',version:'0.3.0',description:'Authenticated transaction and bill API with transaction synchronization protocol. Flutter provides opt-in manual transaction synchronization. All known paths reject unsupported methods with JSON 405 and Allow. Unknown paths return JSON 404. HEAD responses have no body. Use HTTPS outside local development.'},servers:[{url:'http://127.0.0.1:8080'}],paths,components:{securitySchemes:{bearerAuth:{type:'http',scheme:'bearer',description:'Opaque 256-bit token from registration/login, valid for 24 hours. Store securely; do not put tokens in URLs.'}},schemas}};
 const destination=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../docs/openapi.json');
-specification.info.version='0.4.0';
+specification.info.version='0.5.0';
 fs.writeFileSync(destination,JSON.stringify(specification,null,2)+'\n');
 console.log('Generated docs/openapi.json');

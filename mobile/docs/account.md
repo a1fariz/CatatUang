@@ -47,7 +47,7 @@ iOS tidak diberi pengecualian ATS HTTP dalam perubahan ini. Gunakan endpoint HTT
 5. Kegagalan secure storage tidak dialihkan ke penyimpanan plaintext. Aksi akun diblokir sampai penyimpanan dapat dicoba ulang; fitur pencatatan tetap berjalan. Jika penyimpanan token baru gagal, aplikasi mencoba mencabut token tersebut.
 6. Respons 429 menghormati cooldown `Retry-After` sebelum form dapat dikirim lagi. Tombol ganda tidak menghasilkan dua request autentikasi bersamaan.
 
-Sesi berlaku 24 jam mengikuti backend. Refresh token, reset/ganti password, dan verifikasi email belum tersedia. Hapus semua data lokal menghapus transaksi/tagihan/pengaturan serta antrean dan penautan sinkronisasi SQLite; dialog menjelaskan bahwa sesi akun dan data server tidak ikut dihapus. Operasi yang sudah dikirim mungkin sudah diterima server. Lihat [aturan sinkronisasi](transaction-sync.md).
+Sesi berlaku 24 jam mengikuti backend. [Ganti kata sandi](password-change.md) tersedia dengan kata sandi lama dan mencabut sesi lain tanpa menghapus data lokal. Refresh token, pemulihan lupa kata sandi, dan verifikasi email belum tersedia. Hapus semua data lokal menghapus transaksi/tagihan/pengaturan serta antrean, cadangan, dan penautan SQLite; sesi akun dan data server tidak ikut dihapus. Operasi yang sudah dikirim mungkin sudah diterima server. Lihat [aturan sinkronisasi](transaction-sync.md).
 
 ## Pengujian
 

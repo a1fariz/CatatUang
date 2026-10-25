@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Catat Uang API",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "description": "Authenticated transaction and bill API with transaction synchronization protocol. Flutter provides opt-in manual transaction synchronization. All known paths reject unsupported methods with JSON 405 and Allow. Unknown paths return JSON 404. HEAD responses have no body. Use HTTPS outside local development."
   },
   "servers": [
@@ -4095,6 +4095,203 @@
         "summary": "get Transaction Sync Snapshot Head"
       }
     },
+    "/v1/auth/change-password": {
+      "post": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "operationId": "changePassword",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          }
+        },
+        "description": "Verifies current password and current session, changes Argon2id hash, and atomically revokes every other session. The requesting token and its existing expiry are retained. Incorrect current password is 422 and does not revoke the current session. Password-change attempts have separate per-IP/per-account 20-attempt, 15-minute buckets. Never retry automatically after an uncertain response.",
+        "responses": {
+          "204": {
+            "description": "Password changed; other sessions revoked",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request correlation ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON, duplicate/unknown field, or invalid header",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request correlation ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, or revoked session",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request correlation ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Duplicate or stale version; reload record",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request correlation ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 16 KiB",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request correlation ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-Type must be application/json",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request correlation ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Input fails validation",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request correlation ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Authentication rate limit exceeded; Retry-After: 900",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request correlation ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request correlation ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Operation timeout",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request correlation ID",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "change Password"
+      }
+    },
     "/v1/sync/state": {
       "get": {
         "security": [
@@ -5054,6 +5251,28 @@
         },
         "required": [
           "dataset_id"
+        ]
+      },
+      "PasswordChange": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "minLength": 15,
+            "maxLength": 128,
+            "description": "At least 15 Unicode characters; maximum 128 UTF-8 bytes. Spaces are preserved."
+          },
+          "new_password": {
+            "type": "string",
+            "minLength": 15,
+            "maxLength": 128,
+            "description": "Must differ from current_password. At least 15 Unicode characters and at most 128 UTF-8 bytes. Whitespace is preserved."
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
         ]
       }
     }

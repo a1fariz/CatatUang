@@ -1,6 +1,6 @@
 # Sinkronisasi transaksi Flutter
 
-Pembaruan 26 Oktober 2026: SQLite versi 9 menambahkan [peninjauan pemulihan dan cadangan lokal](recovery.md) di atas pin dataset versi 8. Verifikasi terbaru: analyze bersih, 99 unit/widget tests lulus, dan skenario dua SQLite dengan rotasi/pemulihan melalui backend nyata lulus terpisah. CI backend/mobile commit `9eca750` juga sudah berhasil; hasil perubahan selanjutnya diperiksa terpisah.
+Pembaruan 26 Oktober 2026: SQLite versi 9 menambahkan [peninjauan pemulihan dan cadangan lokal](recovery.md) di atas pin dataset versi 8. Verifikasi terbaru: analyze bersih, 107 unit/widget tests lulus, dan skenario dua SQLite dengan rotasi/pemulihan melalui backend nyata lulus terpisah. CI backend/mobile commit `b0b18d4` juga sudah berhasil; hasil perubahan selanjutnya diperiksa terpisah.
 
 Sinkronisasi transaksi tersedia secara opsional melalui **Pengaturan → Sinkronisasi transaksi** pada build yang memiliki `API_BASE_URL`. Pencatatan tanpa akun tetap berjalan. Tagihan, riwayat pembayaran, pengingat, dan pengaturan belum disinkronkan.
 
@@ -63,7 +63,7 @@ APK debug terbaru dibangun dari `lib/main.dart` dengan `API_BASE_URL=http://10.0
 
 - Package: `dev.catatuang.catat_uang`, versi `1.0.0+1`.
 - Tanda tangan diverifikasi dengan apksigner dan cocok dengan keystore debug asli: SHA-256 `c0480972ebad36974db01b30175f2fd6ef0af162fe12431afee759539c24578b`.
-- Seluruh 22 file source Dart `lib/` cocok secara literal dengan source pada kernel APK; target integration akun tidak ditemukan di APK biasa.
-- SHA-256 APK: `fdbf0b145e255ab848f572e8702990cac3f69b99af6a3d99b97bc55d0f8ca984`.
+- Seluruh 23 file source Dart `lib/` cocok secara literal dengan source pada kernel APK; target integration akun tidak ditemukan di APK biasa.
+- SHA-256 APK: `830a9b14d864911d868beb4cde61d82221a178bdba3ee4863c9e7d3180167aa9`.
 
 APK hanya dibangun dan diperiksa, belum dipasang/dijalankan untuk pengujian sinkronisasi Android. Backend tes sudah dihentikan dan tidak disertakan di dalam APK. Untuk perangkat fisik, buat build dengan endpoint HTTPS atau gunakan loopback dan USB reverse seperti pada panduan akun.

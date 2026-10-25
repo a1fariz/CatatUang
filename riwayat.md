@@ -2,6 +2,15 @@
 
 ## 2026-10-26
 
+### Ganti kata sandi dan konsistensi sesi
+- CI commit `b0b18d4` berhasil untuk Backend dan Mobile.
+- Tambah endpoint Bearer `/v1/auth/change-password`, verifikasi sandi lama, hash Argon2id baru, serta pencabutan sesi lain dalam satu transaksi. Token aktif dan expiry semula dipertahankan; tidak ada migrasi/skema keuangan baru.
+- Login memeriksa hash lagi di bawah row lock sebelum menerbitkan sesi agar verifikasi hash lama tidak lolos setelah sandi berubah. Validitas token diperiksa lagi di transaksi ganti sandi; kegagalan pencabutan sesi membatalkan hash baru.
+- Tambah rate limit khusus IP/per akun, strict JSON, dan kontrak OpenAPI 0.5. Flutter menyediakan form lama/baru/konfirmasi, pembersihan isian setiap percobaan, cooldown, penanganan 401/expiry, dan hasil jaringan yang belum pasti tanpa retry POST otomatis.
+- Verifikasi: go vet/build dan seluruh tes PostgreSQL dengan race detector lulus, termasuk login yang diblokir row lock saat hash diganti dan rollback pencabutan yang diinduksi gagal. OpenAPI valid dengan 7 warning gaya. Flutter analyze bersih dan 107 unit/widget tests lulus. Pengujian native/perilaku password manager dan pemulihan lupa sandi belum dilakukan.
+- Skenario backend nyata lulus dengan dua sesi: sandi lama ditolak, sandi baru diterima, sesi kedua dicabut, serta snapshot transaksi dan antrean kedua SQLite tetap sama. Database/proses tes dibersihkan.
+- APK final berhasil dibangun tanpa instalasi emulator; package normal, sertifikat asli, dan seluruh 23 source Dart pada kernel cocok. SHA-256 `.tools/catat-uang-sync-debug.apk`: `830a9b14d864911d868beb4cde61d82221a178bdba3ee4863c9e7d3180167aa9`.
+
 ### Peninjauan pemulihan dan cadangan transaksi lokal
 - Commit `9eca750` yang sempat tertahan DNS berhasil dipush; workflow Backend dan Mobile (Android serta transaction-sync) berhasil di GitHub.
 - Tambah peninjauan data perangkat/akun setelah dataset berubah atau ledger legacy belum memiliki pin. Seluruh perbedaan record yang dikenal harus dipilih; tidak ada reset antrean otomatis di balik penghentian sync.

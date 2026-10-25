@@ -46,7 +46,7 @@ Body dibatasi 16 KiB dan wajib application/json. Objek JSON harus tunggal, tanpa
 
 ## Tahap berikutnya
 
-1. Penguatan siklus akun: verifikasi email, reset/ganti password, kebijakan sesi dan trusted proxy.
+1. Ganti kata sandi dengan verifikasi sandi lama serta pencabutan sesi lain sudah tersedia. Lanjutkan verifikasi email, pemulihan lupa kata sandi, kebijakan sesi, dan trusted proxy.
 2. Integrasi pengaturan dan kebijakan multi-mata-uang. Flutter sudah memiliki UUID mapping, outbox, penautan akun/server, dan ledger satu mata uang; lihat `../../mobile/docs/transaction-sync.md`.
 3. Protokol [sync transaksi backend](transaction-sync.md) menyediakan cursor/change log, tombstone, konflik, receipt retry, dan identitas dataset dengan command rotasi sesudah restore. Flutter memiliki peninjauan pemulihan per record dan cadangan lokal. Integrasi dua SQLite dengan rotasi/pemulihan terhadap backend nyata lulus. Lanjutkan uji perangkat native, backup eksternal, serta protokol tagihan/pembayaran; CRUD biasa bukan pengganti feed sync.
 4. Deployment: secret management, HTTPS, backup/restore, metrik, alert, image digest, dan uji beban.

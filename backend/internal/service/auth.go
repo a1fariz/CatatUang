@@ -135,6 +135,16 @@ func (s *Service) Authenticate(ctx context.Context, input Credentials, register 
 		if _, err = tx.Exec(ctx, "INSERT INTO user_settings(user_id) VALUES($1)", user.ID); err != nil {
 			return Session{}, err
 		}
+	} else {
+		// Serialize session issuance with password changes. A verification of an
+		// old hash must not create a fresh session after that hash was replaced.
+		var current string
+		if err = tx.QueryRow(ctx, `SELECT password_hash FROM users WHERE id=$1 FOR UPDATE`, user.ID).Scan(&current); err != nil {
+			return Session{}, dbError(err)
+		}
+		if current != hash {
+			return Session{}, ErrUnauthorized
+		}
 	}
 	var secret [32]byte
 	_, _ = rand.Read(secret[:])

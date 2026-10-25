@@ -42,6 +42,11 @@ abstract interface class AuthGateway {
   });
   Future<AuthUser> me(String token);
   Future<void> logout(String token, {bool all = false});
+  Future<void> changePassword(
+    String token,
+    String currentPassword,
+    String newPassword,
+  );
   void close();
 }
 
@@ -96,6 +101,20 @@ class HttpAuthGateway implements AuthGateway {
     );
   }
 
+  @override
+  Future<void> changePassword(
+    String token,
+    String currentPassword,
+    String newPassword,
+  ) async {
+    await _request(
+      'POST',
+      'v1/auth/change-password',
+      token: token,
+      body: {'current_password': currentPassword, 'new_password': newPassword},
+    );
+  }
+
   static const _invalidResponse = AuthFailure(
     'Respons layanan akun tidak valid. Coba lagi nanti.',
   );
@@ -120,8 +139,15 @@ class HttpAuthGateway implements AuthGateway {
           request.body = jsonEncode(body);
         }
         final response = await client.send(request);
-        if (response.statusCode == 204 && path.startsWith('v1/auth/logout')) {
+        if (response.statusCode == 204 &&
+            (path.startsWith('v1/auth/logout') ||
+                path == 'v1/auth/change-password')) {
           return <String, dynamic>{};
+        }
+        if (path == 'v1/auth/change-password' &&
+            response.statusCode >= 200 &&
+            response.statusCode < 300) {
+          throw _invalidResponse;
         }
         if (response.statusCode < 200 || response.statusCode >= 300) {
           throw _httpFailure(
@@ -172,11 +198,15 @@ class HttpAuthGateway implements AuthGateway {
         status: status,
       ),
       409 => AuthFailure(
-        'Email sudah terdaftar. Silakan masuk.',
+        path == 'v1/auth/change-password'
+            ? 'Akun atau sesi sedang berubah. Periksa sesi sebelum mencoba lagi.'
+            : 'Email sudah terdaftar. Silakan masuk.',
         status: status,
       ),
       422 => AuthFailure(
-        'Periksa email dan kata sandi yang diisi.',
+        path == 'v1/auth/change-password'
+            ? 'Periksa kata sandi lama dan baru. Kata sandi baru harus berbeda.'
+            : 'Periksa email dan kata sandi yang diisi.',
         status: status,
       ),
       429 => AuthFailure(

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:catat_uang/auth/account_controller.dart';
 import 'package:catat_uang/auth/auth_api.dart';
+import 'package:catat_uang/auth/auth_models.dart';
 import 'package:catat_uang/sync/sync_api.dart';
 import 'package:catat_uang/sync/sync_controller.dart';
 import 'package:catat_uang/transaction_repository.dart';
@@ -169,6 +170,42 @@ void main() {
             expect(recovered.single.amount, 88000);
             expect(syncA.backups, hasLength(1));
             expect(syncB.backups, hasLength(1));
+          }
+          final localBefore = await a.recoverySnapshot();
+          final otherBefore = await b.recoverySnapshot();
+          const changedPassword = 'kata-sandi-baru-dua-perangkat-2026';
+          expect(
+            await accountA.changePassword(password, changedPassword),
+            isTrue,
+            reason: accountA.message,
+          );
+          expect(accountA.hasSession, isTrue);
+          await accountB.refresh();
+          expect(accountB.hasSession, isFalse);
+          expect(await a.recoverySnapshot(), localBefore);
+          expect(await b.recoverySnapshot(), otherBefore);
+          final verifier = HttpAuthGateway(baseUri: server);
+          try {
+            await expectLater(
+              verifier.authenticate(email, password, register: false),
+              throwsA(
+                isA<AuthFailure>().having(
+                  (failure) => failure.status,
+                  'status',
+                  401,
+                ),
+              ),
+            );
+            expect(
+              (await verifier.authenticate(
+                email,
+                changedPassword,
+                register: false,
+              )).user.id,
+              accountA.user!.id,
+            );
+          } finally {
+            verifier.close();
           }
         } finally {
           syncA.dispose();

@@ -73,6 +73,74 @@ class AccountController extends ChangeNotifier {
   bool get rateLimited => _blockedUntil?.isAfter(_now()) ?? false;
   bool get canAuthenticate =>
       initialized && !busy && !storageProblem && !hasSession && !rateLimited;
+  bool get canChangePassword =>
+      initialized &&
+      !busy &&
+      !storageProblem &&
+      hasSession &&
+      verified &&
+      !rateLimited;
+
+  void _acceptRateLimit(AuthFailure failure) {
+    if (failure.retryAfter case final delay?) {
+      _blockedUntil = _now().add(delay);
+      _retryTimer?.cancel();
+      _retryTimer = Timer(delay, () {
+        _blockedUntil = null;
+        _notify();
+      });
+    }
+  }
+
+  Future<bool> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
+    if (!canChangePassword || _disposed) return false;
+    final session = _session!;
+    if (!session.expiresAt.isAfter(_now())) {
+      await _invalidate('Sesi berakhir. Silakan masuk kembali.');
+      return false;
+    }
+    _busy = true;
+    message = null;
+    _notify();
+    try {
+      await _gateway.changePassword(
+        session.token,
+        currentPassword,
+        newPassword,
+      );
+      if (_disposed || _session != session) return false;
+      if (!session.expiresAt.isAfter(_now())) {
+        await _invalidate(
+          'Kata sandi diperbarui. Sesi berakhir; masuk kembali menggunakan kata sandi baru.',
+        );
+        return false;
+      }
+      return true;
+    } on AuthFailure catch (failure) {
+      if (_disposed || _session != session) return false;
+      if (failure.status == 401) {
+        await _invalidate('Sesi berakhir. Silakan masuk kembali.');
+      } else {
+        _acceptRateLimit(failure);
+        message = failure.status == null || failure.status! >= 500
+            ? 'Hasil penggantian belum dapat dipastikan. Periksa koneksi; bila perlu, coba masuk menggunakan kata sandi baru.'
+            : failure.message;
+      }
+      return false;
+    } catch (_) {
+      if (!_disposed && _session == session) {
+        message =
+            'Hasil penggantian belum dapat dipastikan. Periksa koneksi dan coba masuk dengan kata sandi baru bila diperlukan.';
+      }
+      return false;
+    } finally {
+      _busy = false;
+      _notify();
+    }
+  }
 
   void _notify() {
     if (!_disposed) notifyListeners();
@@ -160,14 +228,7 @@ class AccountController extends ChangeNotifier {
       return true;
     } on AuthFailure catch (failure) {
       message = failure.message;
-      if (failure.retryAfter case final delay?) {
-        _blockedUntil = _now().add(delay);
-        _retryTimer?.cancel();
-        _retryTimer = Timer(delay, () {
-          _blockedUntil = null;
-          _notify();
-        });
-      }
+      _acceptRateLimit(failure);
       return false;
     } catch (_) {
       message = 'Akun belum dapat digunakan. Coba lagi.';

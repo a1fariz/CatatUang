@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'account_controller.dart';
+import 'password_screen.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key, required this.controller});
@@ -71,6 +72,24 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
+  Future<void> _changePassword() async {
+    widget.controller.clearMessage();
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ChangePasswordScreen(controller: widget.controller),
+      ),
+    );
+    if (changed == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Kata sandi diperbarui. Perangkat lain perlu masuk kembali.',
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: widget.controller,
@@ -95,7 +114,7 @@ class _AccountScreenState extends State<AccountScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Pencatatan tetap dapat digunakan tanpa akun. Sinkronisasi belum tersedia; catatan di perangkat belum dikirim ke akun.',
+                'Pencatatan tetap dapat digunakan tanpa akun. Sinkronisasi transaksi bersifat opsional melalui penautan di Pengaturan.',
               ),
               const SizedBox(height: 24),
               if (account.busy) ...[
@@ -135,6 +154,12 @@ class _AccountScreenState extends State<AccountScreen> {
                   onPressed: account.busy ? null : account.refresh,
                   icon: const Icon(Icons.refresh),
                   label: const Text('Periksa sesi'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: account.canChangePassword ? _changePassword : null,
+                  icon: const Icon(Icons.lock_outline),
+                  label: const Text('Ganti kata sandi'),
                 ),
                 const SizedBox(height: 12),
                 FilledButton(

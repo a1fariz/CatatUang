@@ -27,7 +27,9 @@ Invoke-RestMethod "$apiBase/v1/auth/logout" -Method Post -Headers $headers
 # Invoke-RestMethod "$apiBase/v1/auth/logout-all" -Method Post -Headers $headers
 ```
 
-Sesi kedaluwarsa/dicabut menghasilkan 401. Tidak ada refresh token; lakukan login ulang. Belum ada endpoint verifikasi email, reset/ganti password, atau pengaturan akun.
+Sesi kedaluwarsa/dicabut menghasilkan 401. Tidak ada refresh token; lakukan login ulang. Belum ada endpoint verifikasi email, pemulihan lupa password, atau pengaturan akun.
+
+`POST /v1/auth/change-password` menerima Bearer dan JSON `current_password`, `new_password`. Keduanya mengikuti batas panjang password; nilai baru harus berbeda. Respons 204 berarti hash berubah dan sesi lain dicabut secara atomik. Token pemanggil tetap berlaku sampai expiry semula. Kata sandi lama salah menghasilkan 422; sesi tidak valid menghasilkan 401; konflik perubahan bersamaan menghasilkan 409. Bucket rate limit khusus per IP/per akun membatasi 20 percobaan per 15 menit, dengan 429/Retry-After 900. Jangan retry otomatis setelah hasil jaringan yang belum pasti. Lihat [panduan Flutter](../../mobile/docs/password-change.md).
 
 Login/register memiliki fixed window 15 menit dengan maksimum 20 percobaan untuk masing-masing IP koneksi dan email. Percobaan sukses tetap dihitung. 429 menyertakan `Retry-After: 900`. Jangan mengulang login otomatis tanpa jeda. `X-Forwarded-For` diabaikan; reverse proxy memerlukan rancangan trusted proxy sebelum melayani banyak pengguna.
 

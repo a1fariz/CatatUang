@@ -37,14 +37,15 @@ func (a *API) serveData(w http.ResponseWriter, r *http.Request, id string) bool 
 	}
 	me := path == "/v1/me"
 	logout := path == "/v1/auth/logout" || path == "/v1/auth/logout-all"
+	passwordChange := path == "/v1/auth/change-password"
 	syncCollection := path == "/v1/sync/transactions"
 	syncState := path == "/v1/sync/state"
 	syncEntity := len(parts) == 4 && parts[0] == "v1" && parts[1] == "sync" && parts[2] == "transactions" && service.ValidID(parts[3])
-	if !collection && !entity && !me && !logout && !syncCollection && !syncEntity && !syncState {
+	if !collection && !entity && !me && !logout && !syncCollection && !syncEntity && !syncState && !passwordChange {
 		return false
 	}
 	methods := "GET, HEAD"
-	if logout || billAction && parts[3] == "pay" {
+	if logout || passwordChange || billAction && parts[3] == "pay" {
 		methods = "POST"
 	} else if collection || syncCollection {
 		methods = "GET, HEAD, POST"
@@ -54,7 +55,11 @@ func (a *API) serveData(w http.ResponseWriter, r *http.Request, id string) bool 
 	if !a.allow(w, r, id, methods) {
 		return true
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), a.dbTimeout)
+	budget := a.dbTimeout
+	if passwordChange {
+		budget += 10 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), budget)
 	defer cancel()
 	r = r.WithContext(ctx)
 	header := strings.Fields(r.Header.Get("Authorization"))
@@ -69,6 +74,29 @@ func (a *API) serveData(w http.ResponseWriter, r *http.Request, id string) bool 
 	}
 	if me {
 		a.json(w, r, 200, user)
+		return true
+	}
+	if passwordChange {
+		if r.URL.RawQuery != "" {
+			a.serviceError(w, r, id, service.ErrInvalid)
+			return true
+		}
+		var input service.PasswordChange
+		if !a.decode(w, r, id, &input) {
+			return true
+		}
+		ip, _, splitErr := net.SplitHostPort(r.RemoteAddr)
+		if splitErr != nil {
+			ip = r.RemoteAddr
+		}
+		if err = a.service.LimitAuth(ctx, "password-change:"+ip, "password-change:"+user.ID); err == nil {
+			err = a.service.ChangePassword(ctx, user.ID, header[1], input)
+		}
+		if err != nil {
+			a.serviceError(w, r, id, err)
+		} else {
+			w.WriteHeader(204)
+		}
 		return true
 	}
 	if syncCollection || syncEntity || syncState {
