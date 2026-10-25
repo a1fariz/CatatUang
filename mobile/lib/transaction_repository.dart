@@ -7,8 +7,10 @@ import 'bill.dart';
 import 'settings.dart';
 import 'transaction.dart';
 import 'sync/sync_models.dart';
+import 'sync/sync_recovery.dart';
 
 part 'sync/sync_repository.dart';
+part 'sync/recovery_repository.dart';
 
 class TransactionRepository {
   TransactionRepository({DatabaseFactory? factory, String? databasePath})
@@ -73,7 +75,7 @@ class TransactionRepository {
         _databasePath ??
             path.join(await _factory.getDatabasesPath(), 'catat_uang.db'),
         options: OpenDatabaseOptions(
-          version: 8,
+          version: 9,
           onCreate: (db, version) async {
             await db.execute('''
             CREATE TABLE transactions (
@@ -88,8 +90,10 @@ class TransactionRepository {
             await _createBillsTables(db);
             await _createSettingsTable(db);
             await _createSyncTables(db);
+            await _createRecoveryTable(db);
           },
           onUpgrade: (db, oldVersion, newVersion) async {
+            if (oldVersion < 9) await _createRecoveryTable(db);
             if (oldVersion < 7) await _createSyncTables(db);
             if (oldVersion == 7) {
               await db.execute(
@@ -157,6 +161,7 @@ class TransactionRepository {
     final db = await _db;
     await db.transaction((txn) async {
       await txn.delete('sync_outbox');
+      await txn.delete('sync_recovery_backups');
       await txn.delete('sync_transactions');
       await txn.delete('sync_binding');
       await txn.delete('transactions');

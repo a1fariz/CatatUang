@@ -2,6 +2,15 @@
 
 ## 2026-10-26
 
+### Peninjauan pemulihan dan cadangan transaksi lokal
+- Commit `9eca750` yang sempat tertahan DNS berhasil dipush; workflow Backend dan Mobile (Android serta transaction-sync) berhasil di GitHub.
+- Tambah peninjauan data perangkat/akun setelah dataset berubah atau ledger legacy belum memiliki pin. Seluruh perbedaan record yang dikenal harus dipilih; tidak ada reset antrean otomatis di balik penghentian sync.
+- Terapkan pilihan, mapping, cursor, dataset, generasi lokal, antrean, serta cadangan kondisi sebelumnya secara atomik. Deteksi perubahan lokal sejak peninjauan, rotasi kedua, dan respons usang. Pilihan perangkat memakai UUID record yang tetap untuk mencegah duplikasi.
+- Tambah daftar cadangan lokal dan restore transaksi/antrean sebelum pemulihan, sambil mencadangkan kondisi saat ini. Tagihan/pembayaran/pengaturan tidak diganti. Cadangan berada di SQLite yang sama, belum bisa diekspor, tidak dipangkas otomatis, dan ikut dihapus oleh hapus semua data lokal.
+- SQLite versi 9 menambahkan `sync_recovery_backups`; migrasi dan operasi inflight lama dipertahankan. Tambah tes rollback dengan kegagalan tulis yang diinduksi, operasi legacy yang sudah diterima, dialog pilihan/konfirmasi, serta pengembalian cadangan.
+- Verifikasi lokal: 99 unit/widget tests lulus dan analyze bersih. Skenario dua file SQLite terhadap Go/PostgreSQL nyata lulus dengan rotasi dataset serta pemulihan pilihan pada kedua perangkat. Workflow mobile diperluas untuk menjalankan skenario ini. Tidak ada instalasi aplikasi atau perubahan pada image emulator.
+- APK pemulihan final dibangun dan diverifikasi: package normal, sertifikat debug asli, serta kecocokan seluruh 22 source Dart pada kernel. SHA-256 `.tools/catat-uang-sync-debug.apk`: `fdbf0b145e255ab848f572e8702990cac3f69b99af6a3d99b97bc55d0f8ca984`.
+
 ### Perlindungan dataset sinkronisasi setelah restore
 - CI GitHub commit awal `d079a12` berhasil untuk Backend dan Mobile, termasuk job dua SQLite terhadap backend nyata.
 - Tambah migrasi PostgreSQL `000004_sync_dataset.sql`, endpoint `/v1/sync/state`, dan header wajib `X-Sync-Dataset`. Pin lama ditolak sebelum mutasi maupun replay receipt; cursor sama tidak melewati guard. Push memegang shared row lock sampai commit.

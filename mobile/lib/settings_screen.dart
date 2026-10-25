@@ -149,7 +149,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Hapus semua data?'),
         content: const Text(
-          'Transaksi, tagihan, riwayat pembayaran, pengaturan, dan antrean sinkronisasi lokal akan dihapus. Penautan catatan dilepas. Akun tetap masuk; data di server tidak dihapus. Operasi yang sedang dikirim mungkin sudah diterima server.',
+          'Transaksi, tagihan, riwayat pembayaran, pengaturan, antrean sinkronisasi, dan cadangan transaksi lokal akan dihapus. Penautan catatan dilepas. Akun tetap masuk; data di server tidak dihapus. Operasi yang sedang dikirim mungkin sudah diterima server.',
         ),
         actions: [
           TextButton(

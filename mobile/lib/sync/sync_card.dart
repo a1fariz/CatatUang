@@ -3,10 +3,70 @@ import 'package:flutter/material.dart';
 import '../money_format.dart';
 import 'sync_controller.dart';
 import 'sync_models.dart';
+import 'recovery_screen.dart';
 
 class TransactionSyncCard extends StatelessWidget {
   const TransactionSyncCard({super.key, required this.controller});
   final TransactionSyncController controller;
+
+  Future<void> _recover(BuildContext context) async {
+    final plan = await controller.prepareRecovery();
+    if (plan != null && context.mounted) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              SyncRecoveryScreen(controller: controller, plan: plan),
+        ),
+      );
+    }
+  }
+
+  Future<void> _backups(BuildContext context) async {
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Cadangan transaksi lokal'),
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Cadangan ini hanya berada di perangkat dan tidak menggantikan backup eksternal. Pilih untuk memulihkan transaksi serta antrean lokal.',
+            ),
+          ),
+          for (final backup in controller.backups)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, backup.id),
+              child: Text(
+                DateTime.parse(
+                  backup.createdAt,
+                ).toLocal().toString().substring(0, 19),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (selected == null || !context.mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Pulihkan cadangan lokal?'),
+        content: const Text(
+          'Transaksi dan antrean lokal saat ini akan diganti. Kondisi saat ini juga dicadangkan. Data server tidak dibatalkan; tagihan dan pembayaran tidak berubah.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Pulihkan cadangan'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await controller.restoreBackup(selected);
+  }
 
   Future<void> _link(BuildContext context) async {
     final email = controller.account.user?.email;
@@ -175,6 +235,22 @@ class TransactionSyncCard extends StatelessWidget {
                   onPressed: account.busy ? null : account.refresh,
                   child: const Text('Periksa akun'),
                 ),
+              if (controller.resetRequired && binding != null)
+                OutlinedButton(
+                  onPressed: available ? () => _recover(context) : null,
+                  child: const Text('Tinjau pemulihan'),
+                ),
+              if (controller.backups.isNotEmpty)
+                TextButton(
+                  onPressed:
+                      !controller.busy &&
+                          !account.busy &&
+                          account.hasSession &&
+                          controller.ownerMatches
+                      ? () => _backups(context)
+                      : null,
+                  child: const Text('Cadangan transaksi lokal'),
+                ),
               if (controller.message != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -191,7 +267,10 @@ class TransactionSyncCard extends StatelessWidget {
                   trailing: issue.server == null
                       ? null
                       : const Icon(Icons.chevron_right),
-                  onTap: issue.server != null && available
+                  onTap:
+                      issue.server != null &&
+                          available &&
+                          !controller.resetRequired
                       ? () => _conflict(context, issue)
                       : null,
                 ),

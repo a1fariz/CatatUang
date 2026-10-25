@@ -1,12 +1,12 @@
 # Sinkronisasi transaksi Flutter
 
-Pembaruan 26 Oktober 2026: SQLite versi 8 menyimpan identitas dataset server. Verifikasi terbaru: analyze bersih, 89 unit/widget tests lulus, dan satu skenario dua database SQLite terhadap backend nyata lulus terpisah. CI backend/mobile commit awal `d079a12` juga sudah berhasil. Hasil CI untuk perubahan selanjutnya diperiksa terpisah.
+Pembaruan 26 Oktober 2026: SQLite versi 9 menambahkan [peninjauan pemulihan dan cadangan lokal](recovery.md) di atas pin dataset versi 8. Verifikasi terbaru: analyze bersih, 99 unit/widget tests lulus, dan skenario dua SQLite dengan rotasi/pemulihan melalui backend nyata lulus terpisah. CI backend/mobile commit `9eca750` juga sudah berhasil; hasil perubahan selanjutnya diperiksa terpisah.
 
 Sinkronisasi transaksi tersedia secara opsional melalui **Pengaturan → Sinkronisasi transaksi** pada build yang memiliki `API_BASE_URL`. Pencatatan tanpa akun tetap berjalan. Tagihan, riwayat pembayaran, pengingat, dan pengaturan belum disinkronkan.
 
 ## Menggunakan sinkronisasi
 
-1. Jalankan backend terbaru dan terapkan seluruh migrasi, termasuk `000003_transaction_sync.sql`. Konfigurasi build mengikuti [panduan akun](account.md).
+1. Jalankan backend terbaru dan terapkan seluruh migrasi, termasuk `000003_transaction_sync.sql` dan `000004_sync_dataset.sql`. Konfigurasi build mengikuti [panduan akun](account.md).
 2. Masuk melalui Pengaturan → Akun, lalu pastikan sesi berhasil diperiksa.
 3. Tekan **Tautkan transaksi**, baca akun tujuan dan konfirmasi penautan. Penautan membuat antrean lokal; belum mengirim transaksi.
 4. Tekan **Sinkronkan sekarang** untuk mengambil transaksi akun dan mengirim perubahan perangkat. Tidak ada upload otomatis pada login, startup, resume, atau perubahan lokal.
@@ -22,7 +22,7 @@ Mata uang aktif dikunci selama ledger tertaut, termasuk jika tidak ada transaksi
 
 Menghapus satu transaksi tertaut menambahkan penghapusan ke antrean. Membuat lalu menghapus transaksi yang belum pernah dicoba dikirim membatalkan upload lokal itu. Operasi yang pernah dicoba tetap harus diperiksa melalui retry karena server mungkin sudah menerimanya.
 
-**Hapus semua data lokal** menghapus transaksi/tagihan/pembayaran/pengaturan, antrean, mapping, dan penautan dalam satu transaksi SQLite. Sesi akun dan transaksi server tetap ada. Penghapusan lokal ini tidak mengirim penghapusan massal ke server. Request yang sudah berjalan mungkin sudah diterima server; respons terlambat tidak mengisi kembali ledger yang sudah dibersihkan. Menautkan ulang dan menyinkronkan dapat mengambil data server kembali.
+**Hapus semua data lokal** menghapus transaksi/tagihan/pembayaran/pengaturan, antrean, mapping, penautan, dan cadangan transaksi lokal dalam satu transaksi SQLite. Sesi akun dan transaksi server tetap ada. Penghapusan lokal ini tidak mengirim penghapusan massal ke server. Request yang sudah berjalan mungkin sudah diterima server; respons terlambat tidak mengisi kembali ledger yang sudah dibersihkan. Menautkan ulang dan menyinkronkan dapat mengambil data server kembali.
 
 ## Ketahanan dan protokol
 
@@ -38,7 +38,7 @@ Menghapus satu transaksi tertaut menambahkan penghapusan ke antrean. Membuat lal
 
 Kontrak server dan batas retensi/restore: [backend transaction sync](../../backend/docs/transaction-sync.md). Aplikasi membaca `/v1/sync/state` sebelum mengirim antrean, memin `dataset_id`, lalu menyertakan header `X-Sync-Dataset` pada request transaksi. Perubahan identitas maupun cursor yang mundur menghentikan sinkronisasi; pin/cursor/antrean tidak direset otomatis.
 
-Operator wajib [merotasi identitas setelah restore](../../backend/docs/restore-sync.md); identitas dari backup tidak berubah sendiri. Ledger lama yang sudah pernah sinkron atau memiliki operasi inflight tanpa pin dataset tidak menerima identitas baru otomatis. Data tetap dapat dipakai lokal, tetapi rekonsiliasi sebelum melanjutkan sync masih memerlukan pemeriksaan manual. Jangan menghapus data atau mengubah pin untuk melewati penghentian ini.
+Operator wajib [merotasi identitas setelah restore](../../backend/docs/restore-sync.md); identitas dari backup tidak berubah sendiri. Ledger lama yang sudah pernah sinkron atau memiliki operasi inflight tanpa pin dataset tidak menerima identitas baru otomatis. Gunakan [Tinjau pemulihan](recovery.md) untuk membandingkan data, membuat pilihan eksplisit, dan menyimpan cadangan sebelum melanjutkan. Jangan menghapus data atau mengubah pin untuk melewati penghentian ini.
 
 ## Verifikasi
 
@@ -63,7 +63,7 @@ APK debug terbaru dibangun dari `lib/main.dart` dengan `API_BASE_URL=http://10.0
 
 - Package: `dev.catatuang.catat_uang`, versi `1.0.0+1`.
 - Tanda tangan diverifikasi dengan apksigner dan cocok dengan keystore debug asli: SHA-256 `c0480972ebad36974db01b30175f2fd6ef0af162fe12431afee759539c24578b`.
-- Seluruh 19 file source Dart `lib/` cocok secara literal dengan source pada kernel APK; target integration akun tidak ditemukan di APK biasa.
-- SHA-256 APK: `28b8ac8cde8e98758703769a49136b03ebdbab66b374617aec085bd9b4d191d8`.
+- Seluruh 22 file source Dart `lib/` cocok secara literal dengan source pada kernel APK; target integration akun tidak ditemukan di APK biasa.
+- SHA-256 APK: `fdbf0b145e255ab848f572e8702990cac3f69b99af6a3d99b97bc55d0f8ca984`.
 
 APK hanya dibangun dan diperiksa, belum dipasang/dijalankan untuk pengujian sinkronisasi Android. Backend tes sudah dihentikan dan tidak disertakan di dalam APK. Untuk perangkat fisik, buat build dengan endpoint HTTPS atau gunakan loopback dan USB reverse seperti pada panduan akun.

@@ -116,6 +116,60 @@ void main() {
           expect(await a.list(periodStart: DateTime(2026, 10)), isEmpty);
           expect(syncB.pending, 0, reason: syncB.message);
           expect(syncB.binding!.lastSuccess, isNotNull);
+          final rotateExecutable = Platform.environment['SYNC_TEST_ROTATE_EXE'];
+          if (rotateExecutable != null && rotateExecutable.isNotEmpty) {
+            await a.save(localTransaction(note: 'Sebelum rotasi dataset'));
+            await syncA.synchronize();
+            await syncB.synchronize();
+            final before = (await b.list(
+              periodStart: DateTime(2026, 10),
+            )).single;
+            await b.save(
+              localTransaction(
+                id: before.id,
+                note: 'Pilihan setelah pemulihan',
+                amount: 88000,
+              ),
+            );
+            final rotated = await Process.run(rotateExecutable, [
+              'rotate-after-restore',
+            ]);
+            expect(
+              rotated.exitCode,
+              0,
+              reason: 'Isolated dataset rotation failed',
+            );
+            await syncB.synchronize();
+            expect(syncB.resetRequired, isTrue);
+            final planB = (await syncB.prepareRecovery())!;
+            for (final item in planB.items) {
+              item.keepLocal = true;
+            }
+            expect(
+              await syncB.applyRecovery(planB),
+              isTrue,
+              reason: syncB.message,
+            );
+            await syncB.synchronize();
+            expect(syncB.pending, 0, reason: syncB.message);
+            await syncA.synchronize();
+            expect(syncA.resetRequired, isTrue);
+            final planA = (await syncA.prepareRecovery())!;
+            for (final item in planA.items) {
+              item.keepLocal = false;
+            }
+            expect(
+              await syncA.applyRecovery(planA),
+              isTrue,
+              reason: syncA.message,
+            );
+            final recovered = await a.list(periodStart: DateTime(2026, 10));
+            expect(recovered, hasLength(1));
+            expect(recovered.single.note, 'Pilihan setelah pemulihan');
+            expect(recovered.single.amount, 88000);
+            expect(syncA.backups, hasLength(1));
+            expect(syncB.backups, hasLength(1));
+          }
         } finally {
           syncA.dispose();
           syncB.dispose();

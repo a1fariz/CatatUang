@@ -44,6 +44,7 @@ void main() {
         await before.close();
         final raw = await databaseFactoryFfiNoIsolate.openDatabase(file);
         await raw.execute('ALTER TABLE sync_binding DROP COLUMN dataset_id');
+        await raw.execute('DROP TABLE sync_recovery_backups');
         await raw.setVersion(7);
         await raw.close();
         final upgraded = TransactionRepository(
@@ -400,6 +401,7 @@ void main() {
         await before.close();
         final raw = await databaseFactoryFfiNoIsolate.openDatabase(file);
         for (final table in [
+          'sync_recovery_backups',
           'sync_outbox',
           'sync_transactions',
           'sync_binding',

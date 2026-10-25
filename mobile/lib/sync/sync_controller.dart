@@ -5,6 +5,7 @@ import '../auth/auth_models.dart';
 import '../transaction_repository.dart';
 import 'sync_api.dart';
 import 'sync_models.dart';
+import 'sync_recovery.dart';
 
 class TransactionSyncController extends ChangeNotifier {
   TransactionSyncController({
@@ -20,6 +21,8 @@ class TransactionSyncController extends ChangeNotifier {
   int pending = 0;
   int dataRevision = 0;
   bool busy = false;
+  bool resetRequired = false;
+  List<RecoveryBackup> backups = [];
   bool _disposed = false;
   String? message;
   bool get ownerMatches =>
@@ -33,8 +36,10 @@ class TransactionSyncController extends ChangeNotifier {
   Future<void> reload() async {
     try {
       binding = await repository.syncBinding();
+      if (binding == null) resetRequired = false;
       pending = await repository.syncPendingCount();
       issues = await repository.syncIssues();
+      backups = await repository.recoveryBackups();
     } catch (_) {
       message = 'Status sinkronisasi gagal dibaca. Coba lagi.';
     }
@@ -237,10 +242,12 @@ class TransactionSyncController extends ChangeNotifier {
             'Sebagian perubahan diproses. Tekan sinkronkan lagi untuk melanjutkan.';
       } else {
         await repository.finishSync(ledger.generation);
+        resetRequired = false;
         message =
             'Transaksi sudah disinkronkan. Tagihan dan pembayaran tetap lokal.';
       }
     } on SyncFailure catch (e) {
+      if (e.code == 'sync_reset_required') resetRequired = true;
       message = e.message;
     } on AuthFailure catch (e) {
       message = e.message;
@@ -254,7 +261,13 @@ class TransactionSyncController extends ChangeNotifier {
   }
 
   Future<void> resolve(String remoteId, {required bool keepLocal}) async {
-    if (busy || _disposed || !ownerMatches || account.user == null) return;
+    if (busy ||
+        _disposed ||
+        resetRequired ||
+        !ownerMatches ||
+        account.user == null) {
+      return;
+    }
     busy = true;
     message = null;
     _notify();
@@ -274,6 +287,128 @@ class TransactionSyncController extends ChangeNotifier {
       message = e.message;
     } catch (_) {
       message = 'Konflik belum dapat diselesaikan. Coba lagi.';
+    } finally {
+      busy = false;
+      await reload();
+    }
+  }
+
+  Future<RecoveryPlan?> prepareRecovery() async {
+    if (busy || _disposed || !resetRequired) return null;
+    busy = true;
+    message = null;
+    _notify();
+    try {
+      await account.refresh();
+      final snapshot = await repository.recoverySnapshot();
+      final ledger = SyncBinding(
+        Map<String, Object?>.from(snapshot['binding'] as Map),
+      );
+      final dataset = await _request(
+        ledger,
+        (token) => _gateway.datasetId(token),
+      );
+      if (dataset == ledger.datasetId) {
+        throw const SyncFailure(
+          'Identitas dataset belum berubah. Minta operator memeriksa prosedur restore sebelum pemulihan.',
+        );
+      }
+      final records = <String, SyncRecord>{};
+      var cursor = 0;
+      for (var pageIndex = 0; pageIndex < 200; pageIndex++) {
+        final page = await _request(
+          ledger,
+          (token) => _gateway.pull(token, cursor, dataset: dataset),
+        );
+        for (final record in page.items) {
+          final old = records[record.id];
+          if (old == null || record.version > old.version) {
+            records[record.id] = record;
+          }
+        }
+        if (records.length > 5000) {
+          throw const SyncFailure(
+            'Data terlalu besar untuk peninjauan perangkat. Pemulihan dihentikan tanpa mengubah catatan.',
+          );
+        }
+        cursor = page.cursor;
+        if (!page.hasMore) {
+          return RecoveryPlan(
+            dataset: dataset,
+            cursor: cursor,
+            snapshot: snapshot,
+            records: records,
+          );
+        }
+      }
+      throw const SyncFailure(
+        'Riwayat akun terlalu besar untuk peninjauan perangkat. Tidak ada perubahan lokal.',
+      );
+    } on SyncFailure catch (e) {
+      message = e.message;
+    } on AuthFailure catch (e) {
+      message = e.message;
+    } catch (_) {
+      message = 'Peninjauan pemulihan gagal. Data lokal tetap tersimpan.';
+    } finally {
+      busy = false;
+      await reload();
+    }
+    return null;
+  }
+
+  Future<bool> applyRecovery(RecoveryPlan plan) async {
+    if (busy || _disposed) return false;
+    busy = true;
+    message = null;
+    _notify();
+    try {
+      final current = await _request(
+        plan.binding,
+        (token) => _gateway.datasetId(token),
+      );
+      if (current != plan.dataset) {
+        throw const SyncFailure(
+          'Dataset berubah lagi. Tinjau ulang pemulihan.',
+        );
+      }
+      await repository.applyRecovery(plan);
+      resetRequired = false;
+      dataRevision++;
+      message =
+          'Pilihan diterapkan dan cadangan lokal disimpan. Sinkronkan lagi untuk mengirim pilihan perangkat.';
+      return true;
+    } on SyncFailure catch (e) {
+      message = e.message;
+    } on AuthFailure catch (e) {
+      message = e.message;
+    } catch (_) {
+      message =
+          'Pemulihan gagal diterapkan. Catatan sebelumnya tetap tersimpan.';
+    } finally {
+      busy = false;
+      await reload();
+    }
+    return false;
+  }
+
+  Future<void> restoreBackup(String backupId) async {
+    if (busy || _disposed || !ownerMatches || account.user == null) return;
+    busy = true;
+    message = null;
+    _notify();
+    try {
+      final ledger = await repository.syncBinding();
+      if (ledger == null) return;
+      await repository.restoreRecoveryBackup(ledger.generation, backupId);
+      resetRequired = true;
+      dataRevision++;
+      message =
+          'Cadangan transaksi lokal dipulihkan. Perubahan server tidak dibatalkan; tinjau pemulihan sebelum sinkronisasi.';
+    } on SyncFailure catch (e) {
+      message = e.message;
+    } catch (_) {
+      message = 'Cadangan belum dapat dipulihkan. Coba lagi.';
     } finally {
       busy = false;
       await reload();

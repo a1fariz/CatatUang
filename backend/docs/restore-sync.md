@@ -25,7 +25,7 @@ Perintah menampilkan UUID identitas dataset tanpa URL database/kredensial. Ident
 ```
 
 5. Verifikasi UUID berbeda dari dataset sebelum restore, lalu buka API. Perangkat dengan pin lama dihentikan melalui `sync_reset_required`; data dan antrean lokal dipertahankan.
-6. Rekonsiliasi record, tombstone, dan operasi yang belum pasti terhadap data hasil restore. UI/rekonsiliasi otomatis belum tersedia. Jangan mengatasi reset dengan mengubah pin, membuang outbox, menghapus semua data, atau mengulang operasi memakai ID baru: perubahan lokal dapat hilang atau transaksi tergandakan.
+6. Rekonsiliasi melalui [layar peninjauan Flutter](../../mobile/docs/recovery.md): bandingkan setiap perbedaan, pilih data perangkat/akun, lalu konfirmasi. Aplikasi menyimpan cadangan sebelum menerapkan pilihan dan menyiapkan antrean baru dengan UUID record yang tetap. Jangan melewati peninjauan dengan mengubah pin, membuang outbox, atau menghapus semua data; perubahan lokal dapat hilang atau transaksi tergandakan.
 
 Rotasi tidak mengubah transaksi, clock, log, receipt, pengguna, atau sesi. Rotasi tidak memperbaiki backup maupun menggabungkan data perangkat. Tidak perlu rotasi pada restart/deploy biasa. Rotasi tanpa restore tetap menghentikan semua klien tertaut, sehingga command ini hanya untuk operator pemulihan.
 
@@ -35,4 +35,4 @@ Binary container tersedia di `/app/sync-dataset`; gunakan environment database y
 
 Klien baru menyimpan pin pada SQLite versi 8. Klien lama tanpa header ditolak dengan 428 dan harus diperbarui. Ledger baru yang belum pernah mengirim/menerima perubahan dapat memin identitas pertama. Ledger versi 7 dengan cursor, versi remote, atau operasi inflight tidak boleh menebak identitas awal: sinkronisasi dihentikan sambil mempertahankan data untuk rekonsiliasi.
 
-Uji lokal mencakup migrasi PostgreSQL, pin lama dengan cursor sama, penolakan sebelum receipt replay, migrasi SQLite 7 ke 8, perlindungan antrean, serta command status/rotasi di database terisolasi. Ini belum merupakan uji restore backup production atau bukti kelengkapan rekonsiliasi.
+Uji lokal mencakup migrasi PostgreSQL/SQLite, pin lama dengan cursor sama, penolakan sebelum receipt replay, perlindungan antrean, command status/rotasi, serta peninjauan/penerapan pilihan dari dua SQLite terhadap backend nyata. Ini belum merupakan uji restore backup production; dataset besar atau mata uang yang tidak didukung tetap memerlukan pemeriksaan operator.
