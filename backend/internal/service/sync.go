@@ -52,7 +52,7 @@ func (in SyncMutation) Validate() error {
 
 // A receipt and its mutation commit together. Retrying an operation returns its
 // original result, even if another device has subsequently edited the record.
-func (s *Service) PushTransaction(ctx context.Context, user string, in SyncMutation) (SyncRecord, error) {
+func (s *Service) PushTransaction(ctx context.Context, user string, in SyncMutation, dataset string) (SyncRecord, error) {
 	var result SyncRecord
 	if err := in.Validate(); err != nil {
 		return result, err
@@ -67,6 +67,9 @@ func (s *Service) PushTransaction(ctx context.Context, user string, in SyncMutat
 		return result, err
 	}
 	defer tx.Rollback(ctx)
+	if err = checkSyncDataset(ctx, tx, dataset, true); err != nil {
+		return result, err
+	}
 	lock := sha256.Sum256([]byte(user + ":" + in.OperationID))
 	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, int64(binary.BigEndian.Uint64(lock[:8]))); err != nil {
 		return result, dbError(err)
@@ -117,21 +120,32 @@ func (s *Service) PushTransaction(ctx context.Context, user string, in SyncMutat
 }
 
 // Tombstones are deliberately readable here, unlike the ordinary CRUD API.
-func (s *Service) GetSyncTransaction(ctx context.Context, user, id string) (SyncRecord, error) {
+func (s *Service) GetSyncTransaction(ctx context.Context, user, id, dataset string) (SyncRecord, error) {
 	var result SyncRecord
 	var raw []byte
 	if !ValidID(id) {
 		return result, ErrInvalid
 	}
-	err := s.Pool.QueryRow(ctx, `SELECT transaction_sync_record(t) FROM transactions t WHERE user_id=$1 AND id=$2`, user, id).Scan(&raw)
+	tx, err := s.Pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return result, err
+	}
+	defer tx.Rollback(ctx)
+	if err = checkSyncDataset(ctx, tx, dataset, false); err != nil {
+		return result, err
+	}
+	err = tx.QueryRow(ctx, `SELECT transaction_sync_record(t) FROM transactions t WHERE user_id=$1 AND id=$2`, user, id).Scan(&raw)
 	if err != nil {
 		return result, dbError(err)
 	}
 	err = json.Unmarshal(raw, &result)
-	return result, err
+	if err != nil {
+		return result, err
+	}
+	return result, tx.Commit(ctx)
 }
 
-func (s *Service) PullTransactions(ctx context.Context, user string, after int64, limit int) (SyncPage, error) {
+func (s *Service) PullTransactions(ctx context.Context, user string, after int64, limit int, dataset string) (SyncPage, error) {
 	page := SyncPage{Items: []SyncChange{}}
 	if after < 0 || after > MaxAmount || limit < 1 || limit > 100 {
 		return page, ErrInvalid
@@ -141,6 +155,9 @@ func (s *Service) PullTransactions(ctx context.Context, user string, after int64
 		return page, err
 	}
 	defer tx.Rollback(ctx)
+	if err = checkSyncDataset(ctx, tx, dataset, false); err != nil {
+		return page, err
+	}
 	var clock int64
 	err = tx.QueryRow(ctx, `SELECT COALESCE((SELECT seq FROM transaction_sync_clock WHERE user_id=$1),0)`, user).Scan(&clock)
 	if err != nil {

@@ -23,6 +23,85 @@ void main() {
   tearDown(() async {
     await repo.close();
   });
+  test(
+    'version 7 migration preserves linked data and queue without guessing dataset',
+    () async {
+      final folder = await Directory.systemTemp.createTemp('catatuang-v7-');
+      final file = '${folder.path}/ledger.db';
+      final before = TransactionRepository(
+        factory: databaseFactoryFfiNoIsolate,
+        databasePath: file,
+      );
+      try {
+        await before.save(localTransaction());
+        await before.linkSync(
+          server: server,
+          userId: testUser.id,
+          email: testUser.email,
+        );
+        final binding = (await before.syncBinding())!;
+        final operation = (await before.nextSyncOperation(binding.generation))!;
+        await before.close();
+        final raw = await databaseFactoryFfiNoIsolate.openDatabase(file);
+        await raw.execute('ALTER TABLE sync_binding DROP COLUMN dataset_id');
+        await raw.setVersion(7);
+        await raw.close();
+        final upgraded = TransactionRepository(
+          factory: databaseFactoryFfiNoIsolate,
+          databasePath: file,
+        );
+        try {
+          expect(
+            (await upgraded.syncBinding())!.generation,
+            binding.generation,
+          );
+          expect((await upgraded.syncBinding())!.datasetId, isNull);
+          expect(
+            (await upgraded.nextSyncOperation(binding.generation))!.toJson(),
+            operation.toJson(),
+          );
+          expect(
+            (await upgraded.list(
+              periodStart: DateTime(2026, 10),
+            )).single.amount,
+            42000,
+          );
+          await expectLater(
+            upgraded.pinSyncDataset(binding.generation, syncId()),
+            throwsA(isA<SyncFailure>()),
+          );
+        } finally {
+          await upgraded.close();
+        }
+      } finally {
+        await before.close();
+        await folder.delete(recursive: true);
+      }
+    },
+  );
+  test(
+    'legacy uncertain ledger cannot silently adopt a server identity',
+    () async {
+      await repo.linkSync(
+        server: server,
+        userId: testUser.id,
+        email: testUser.email,
+      );
+      final ledger = (await repo.syncBinding())!;
+      await repo.save(localTransaction());
+      final operation = (await repo.nextSyncOperation(ledger.generation))!;
+      await expectLater(
+        repo.pinSyncDataset(ledger.generation, syncId()),
+        throwsA(isA<SyncFailure>()),
+      );
+      expect((await repo.syncBinding())!.datasetId, isNull);
+      expect(
+        (await repo.nextSyncOperation(ledger.generation))!.toJson(),
+        operation.toJson(),
+      );
+      expect(await repo.syncPendingCount(), 1);
+    },
+  );
   Future<SyncBinding> link() async {
     await repo.linkSync(
       server: server,

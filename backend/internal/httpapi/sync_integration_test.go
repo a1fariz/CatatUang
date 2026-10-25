@@ -105,6 +105,10 @@ func TestTransactionSyncConcurrentRetry(t *testing.T) {
 	c := integrationClient(t)
 	user := c.register("retry@example.com").User.ID
 	s := service.New(c.pool)
+	dataset, err := s.SyncDataset(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
 	p := syncInput()
 	in := service.SyncMutation{OperationID: service.NewID(), ID: service.NewID(), Payload: &p}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -115,7 +119,7 @@ func TestTransactionSyncConcurrentRetry(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			v, err := s.PushTransaction(ctx, user, in)
+			v, err := s.PushTransaction(ctx, user, in, dataset)
 			if err == nil && (v.ID != in.ID || v.Version != 1) {
 				err = fmt.Errorf("inconsistent receipt")
 			}
@@ -129,7 +133,7 @@ func TestTransactionSyncConcurrentRetry(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	page, err := s.PullTransactions(ctx, user, 0, 100)
+	page, err := s.PullTransactions(ctx, user, 0, 100, dataset)
 	if err != nil || len(page.Items) != 1 {
 		t.Fatal("duplicate mutation", page, err)
 	}
@@ -142,7 +146,7 @@ func TestTransactionSyncConcurrentRetry(t *testing.T) {
 			edit := in
 			edit.OperationID = service.NewID()
 			edit.BaseVersion = 1
-			_, err := s.PushTransaction(ctx, user, edit)
+			_, err := s.PushTransaction(ctx, user, edit, dataset)
 			results <- err
 		}()
 	}
@@ -192,6 +196,11 @@ func TestTransactionSyncValidation(t *testing.T) {
 		r := httptest.NewRequest("POST", "/v1/sync/transactions", strings.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
 		r.Header.Set("Authorization", "Bearer "+token)
+		dataset, err := service.New(c.pool).SyncDataset(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Header.Set("X-Sync-Dataset", dataset)
 		w := httptest.NewRecorder()
 		c.handler.ServeHTTP(w, r)
 		if w.Code != 400 {

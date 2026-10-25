@@ -13,6 +13,34 @@ import 'sync_fakes.dart';
 void main() {
   final base = Uri.parse('https://api.example.com/');
   test(
+    'dataset discovery validates identity and sync sends the pinned header',
+    () async {
+      final identity = syncId();
+      final api = HttpTransactionSyncGateway(
+        baseUri: base,
+        clientFactory: () => MockClient((request) async {
+          if (request.url.path == '/v1/sync/state') {
+            expect(request.headers.containsKey('X-Sync-Dataset'), isFalse);
+            return http.Response(
+              jsonEncode({'dataset_id': identity}),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          expect(request.headers['X-Sync-Dataset'], identity);
+          return http.Response(
+            '{"items":[],"cursor":0,"has_more":false}',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      );
+      addTearDown(api.close);
+      expect(await api.datasetId('secret'), identity);
+      expect((await api.pull('secret', 0, dataset: identity)).cursor, 0);
+    },
+  );
+  test(
     'sync HTTP sends a fixed operation, no redirects or implicit retries',
     () async {
       var calls = 0;

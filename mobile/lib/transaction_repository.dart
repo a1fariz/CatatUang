@@ -73,7 +73,7 @@ class TransactionRepository {
         _databasePath ??
             path.join(await _factory.getDatabasesPath(), 'catat_uang.db'),
         options: OpenDatabaseOptions(
-          version: 7,
+          version: 8,
           onCreate: (db, version) async {
             await db.execute('''
             CREATE TABLE transactions (
@@ -91,6 +91,11 @@ class TransactionRepository {
           },
           onUpgrade: (db, oldVersion, newVersion) async {
             if (oldVersion < 7) await _createSyncTables(db);
+            if (oldVersion == 7) {
+              await db.execute(
+                'ALTER TABLE sync_binding ADD COLUMN dataset_id TEXT',
+              );
+            }
             if (oldVersion < 3) await _createBillsTables(db);
             if (oldVersion < 4) await _createSettingsTable(db);
             if (oldVersion >= 4 && oldVersion < 5) {

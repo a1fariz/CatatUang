@@ -6,6 +6,8 @@ Backend menyediakan protokol transaksi dua arah. Flutter menggunakan SQLite loka
 
 Semua endpoint memakai sesi Bearer dan hanya mengakses data pemilik sesi. Format lengkap ada di [OpenAPI](openapi.json).
 
+Sejak protokol 0.4, klien membaca `GET /v1/sync/state` dan menyimpan `dataset_id` sebelum sinkronisasi pertama. Semua endpoint transaksi sync wajib membawa header `X-Sync-Dataset` yang sudah dipin. Header hilang menghasilkan 428 `sync_dataset_required`; identitas berbeda menghasilkan 409 `sync_reset_required`, termasuk replay receipt lama. API CRUD biasa tidak memakai header ini.
+
 | Metode | Path | Hasil |
 |---|---|---|
 | GET | `/v1/sync/transactions?after=0&limit=50` | Halaman perubahan, `cursor`, `has_more` |
@@ -51,7 +53,9 @@ Migrasi tambahan `000003_transaction_sync.sql` membuat baseline dari transaksi y
 
 Log perubahan, tombstone, dan receipt belum dipangkas otomatis. Penyimpanan bertambah mengikuti jumlah perubahan. Penghapusan fisik record biasa atau pemangkasan log akan melanggar kontrak ini; belum ada kebijakan retensi/kompaksi. Penghapusan akun melalui administrasi database membersihkan metadata melalui foreign key cascade.
 
-Pemulihan backup server tetap memerlukan prosedur rekonsiliasi. Deteksi cursor di depan clock tidak dapat mendeteksi semua pemulihan bercabang ketika angka clock kebetulan sama/lebih besar. Sebelum penggunaan production lintas perangkat, tambahkan identitas generasi dataset dan alur reset yang eksplisit.
+Migrasi `000004_sync_dataset.sql` menambahkan identitas dataset yang persisten. Identitas tidak berubah saat restart/deploy biasa. Setelah restore/replacement database, operator wajib merotasi identitas sebelum membuka akses klien; lihat [prosedur restore](restore-sync.md). UUID yang ikut dipulihkan dari backup tidak otomatis berubah, sehingga melewatkan rotasi tetap berbahaya.
+
+Push memeriksa identitas dalam transaksi dan memegang shared row lock sampai commit; rotasi menunggu push yang sudah diterima selesai. Pull dan pembacaan snapshot memeriksa identitas serta data dalam snapshot repeatable read yang sama. Klien tidak boleh mengubah pin/cursor atau membuang antrean otomatis saat menerima reset.
 
 ## Klien Flutter dan kelanjutan
 

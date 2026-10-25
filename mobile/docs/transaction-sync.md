@@ -1,5 +1,7 @@
 # Sinkronisasi transaksi Flutter
 
+Pembaruan 26 Oktober 2026: SQLite versi 8 menyimpan identitas dataset server. Verifikasi terbaru: analyze bersih, 89 unit/widget tests lulus, dan satu skenario dua database SQLite terhadap backend nyata lulus terpisah. CI backend/mobile commit awal `d079a12` juga sudah berhasil. Hasil CI untuk perubahan selanjutnya diperiksa terpisah.
+
 Sinkronisasi transaksi tersedia secara opsional melalui **Pengaturan → Sinkronisasi transaksi** pada build yang memiliki `API_BASE_URL`. Pencatatan tanpa akun tetap berjalan. Tagihan, riwayat pembayaran, pengingat, dan pengaturan belum disinkronkan.
 
 ## Menggunakan sinkronisasi
@@ -34,7 +36,9 @@ Menghapus satu transaksi tertaut menambahkan penghapusan ke antrean. Membuat lal
 - Request memeriksa pemilik akun/server dan sesi sebelum dikirim. Respons dari sesi yang sudah berubah tidak diterapkan; 401 tidak boleh menghapus sesi baru yang berbeda.
 - HTTP memakai timeout 15 detik, respons maksimal 1 MiB, redirect nonaktif, dan pesan lokal. Satu proses manual dibatasi 100 operasi dan 50 halaman per putaran pull; hasil sebagian meminta sinkronisasi lanjutan. Konflik pada satu record tidak menghalangi record lain.
 
-Kontrak server dan batas retensi/restore: [backend transaction sync](../../backend/docs/transaction-sync.md). Cursor server yang mundur dihentikan dengan pesan rekonsiliasi; tidak ada reset otomatis yang membuang antrean. Identitas generasi dataset server dan alur pemulihan backup bercabang masih perlu dikerjakan sebelum penggunaan production lintas perangkat.
+Kontrak server dan batas retensi/restore: [backend transaction sync](../../backend/docs/transaction-sync.md). Aplikasi membaca `/v1/sync/state` sebelum mengirim antrean, memin `dataset_id`, lalu menyertakan header `X-Sync-Dataset` pada request transaksi. Perubahan identitas maupun cursor yang mundur menghentikan sinkronisasi; pin/cursor/antrean tidak direset otomatis.
+
+Operator wajib [merotasi identitas setelah restore](../../backend/docs/restore-sync.md); identitas dari backup tidak berubah sendiri. Ledger lama yang sudah pernah sinkron atau memiliki operasi inflight tanpa pin dataset tidak menerima identitas baru otomatis. Data tetap dapat dipakai lokal, tetapi rekonsiliasi sebelum melanjutkan sync masih memerlukan pemeriksaan manual. Jangan menghapus data atau mengubah pin untuk melewati penghentian ini.
 
 ## Verifikasi
 
@@ -49,9 +53,9 @@ Tes khusus backend nyata memakai dua **file database SQLite tes**, dua sesi akun
 flutter test --no-pub --dart-define=SYNC_TEST_API_URL=http://127.0.0.1:18089 test/sync_backend_test.dart
 ```
 
-Jalankan API tes di alamat tersebut dengan database tes yang telah dimigrasikan. Tes membuat akun unik; jangan arahkan ke production. Tanpa define ini, skenario backend nyata dilewati oleh suite biasa. Workflow mobile memiliki job PostgreSQL/Go khusus agar skenario ini dapat berjalan di CI; eksekusi CI remote belum diverifikasi.
+Jalankan API tes di alamat tersebut dengan database tes yang telah dimigrasikan. Tes membuat akun unik; jangan arahkan ke production. Tanpa define ini, skenario backend nyata dilewati oleh suite biasa. Workflow mobile memiliki job PostgreSQL/Go khusus agar skenario ini dapat berjalan di CI; CI commit awal sudah berhasil; hasil untuk perubahan selanjutnya diperiksa terpisah.
 
-Hasil lokal: 84 unit/widget tests lulus dan 1 skenario backend nyata lulus terpisah. Uji mencakup receipt hilang, antrean setelah reopen, edit saat inflight, konflik, tombstone, perbedaan akun/mata uang, data clear saat request berjalan, migrasi, validasi HTTP, persetujuan penautan, dan pilihan konflik. Dua database mewakili dua perangkat; pengujian ini bukan bukti interaksi dua perangkat Android/native. Tidak ada instalasi aplikasi ke emulator pada tahap ini.
+Verifikasi 25 Oktober 2026: 84 unit/widget tests lulus dan 1 skenario backend nyata lulus terpisah. Uji mencakup receipt hilang, antrean setelah reopen, edit saat inflight, konflik, tombstone, perbedaan akun/mata uang, data clear saat request berjalan, migrasi, validasi HTTP, persetujuan penautan, dan pilihan konflik. Dua database mewakili dua perangkat; pengujian ini bukan bukti interaksi dua perangkat Android/native. Tidak ada instalasi aplikasi ke emulator pada tahap ini.
 
 ## APK pengembangan terverifikasi
 
@@ -60,6 +64,6 @@ APK debug terbaru dibangun dari `lib/main.dart` dengan `API_BASE_URL=http://10.0
 - Package: `dev.catatuang.catat_uang`, versi `1.0.0+1`.
 - Tanda tangan diverifikasi dengan apksigner dan cocok dengan keystore debug asli: SHA-256 `c0480972ebad36974db01b30175f2fd6ef0af162fe12431afee759539c24578b`.
 - Seluruh 19 file source Dart `lib/` cocok secara literal dengan source pada kernel APK; target integration akun tidak ditemukan di APK biasa.
-- SHA-256 APK: `71ef21093e03e0ea97860cbed7e590559b5e45a2dc8ae64cb675f6c76b7c314f`.
+- SHA-256 APK: `28b8ac8cde8e98758703769a49136b03ebdbab66b374617aec085bd9b4d191d8`.
 
 APK hanya dibangun dan diperiksa, belum dipasang/dijalankan untuk pengujian sinkronisasi Android. Backend tes sudah dihentikan dan tidak disertakan di dalam APK. Untuk perangkat fisik, buat build dengan endpoint HTTPS atau gunakan loopback dan USB reverse seperti pada panduan akun.

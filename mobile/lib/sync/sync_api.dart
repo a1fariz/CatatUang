@@ -8,9 +8,14 @@ import 'sync_models.dart';
 
 abstract interface class TransactionSyncGateway {
   Uri get baseUri;
-  Future<SyncPage> pull(String token, int after);
-  Future<SyncRecord> push(String token, SyncOperation operation);
-  Future<SyncRecord> snapshot(String token, String id);
+  Future<String> datasetId(String token);
+  Future<SyncPage> pull(String token, int after, {String? dataset});
+  Future<SyncRecord> push(
+    String token,
+    SyncOperation operation, {
+    String? dataset,
+  });
+  Future<SyncRecord> snapshot(String token, String id, {String? dataset});
   void close();
 }
 
@@ -28,25 +33,53 @@ class HttpTransactionSyncGateway implements TransactionSyncGateway {
   bool _closed = false;
 
   @override
-  Future<SyncPage> pull(String token, int after) async => SyncPage.fromJson(
-    await _request('GET', 'v1/sync/transactions?after=$after&limit=50', token),
-    after,
-  );
+  Future<String> datasetId(String token) async {
+    final value = (await _request('GET', 'v1/sync/state', token))['dataset_id'];
+    if (!validSyncId(value)) {
+      throw const SyncFailure('Identitas dataset server tidak valid.');
+    }
+    return value as String;
+  }
+
   @override
-  Future<SyncRecord> push(String token, SyncOperation operation) async =>
-      SyncRecord.fromJson(
+  Future<SyncPage> pull(String token, int after, {String? dataset}) async =>
+      SyncPage.fromJson(
         await _request(
-          'POST',
-          'v1/sync/transactions',
+          'GET',
+          'v1/sync/transactions?after=$after&limit=50',
           token,
-          body: operation.toJson(),
+          dataset: dataset,
         ),
+        after,
       );
   @override
-  Future<SyncRecord> snapshot(String token, String id) async {
+  Future<SyncRecord> push(
+    String token,
+    SyncOperation operation, {
+    String? dataset,
+  }) async => SyncRecord.fromJson(
+    await _request(
+      'POST',
+      'v1/sync/transactions',
+      token,
+      body: operation.toJson(),
+      dataset: dataset,
+    ),
+  );
+  @override
+  Future<SyncRecord> snapshot(
+    String token,
+    String id, {
+    String? dataset,
+  }) async {
     if (!validSyncId(id)) throw const FormatException('Invalid record ID');
     return SyncRecord.fromJson(
-      await _request('GET', 'v1/sync/transactions/$id', token),
+      await _request(
+        'GET',
+        'v1/sync/transactions/$id',
+        token,
+        dataset: dataset,
+      ),
     );
   }
 
@@ -55,6 +88,7 @@ class HttpTransactionSyncGateway implements TransactionSyncGateway {
     String path,
     String token, {
     Map<String, Object?>? body,
+    String? dataset,
   }) async {
     if (_closed) throw const SyncFailure('Sinkronisasi sudah ditutup.');
     final client = _factory();
@@ -65,6 +99,7 @@ class HttpTransactionSyncGateway implements TransactionSyncGateway {
           ..followRedirects = false
           ..headers['Accept'] = 'application/json'
           ..headers['Authorization'] = 'Bearer $token';
+        if (dataset != null) request.headers['X-Sync-Dataset'] = dataset;
         if (body != null) {
           request.headers['Content-Type'] = 'application/json; charset=utf-8';
           request.body = jsonEncode(body);
@@ -104,6 +139,8 @@ class HttpTransactionSyncGateway implements TransactionSyncGateway {
                     422 =>
                       'Catatan ditolak server. Periksa tanggal, nominal, kategori, dan panjang catatan.',
                     404 => 'Catatan akun tidak ditemukan.',
+                    428 =>
+                      'Versi aplikasi belum mendukung identitas dataset server. Perbarui aplikasi; catatan lokal tetap tersimpan.',
                     _ =>
                       'Layanan sinkronisasi belum dapat digunakan. Coba lagi.',
                   },

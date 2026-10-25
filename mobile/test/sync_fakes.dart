@@ -56,13 +56,31 @@ class FakeSyncGateway implements TransactionSyncGateway {
   Completer<void>? pushGate;
   Completer<void>? pullGate;
   int pushes = 0, pulls = 0;
+  String currentDataset = '33333333-3333-4333-8333-333333333333';
+  @override
+  Future<String> datasetId(String token) async => currentDataset;
+  void _checkDataset(String? dataset) {
+    if (dataset != currentDataset) {
+      throw const SyncFailure(
+        'Dataset changed',
+        status: 409,
+        code: 'sync_reset_required',
+      );
+    }
+  }
+
   void change(SyncRecord record) {
     records[record.id] = record;
     changes.add(record);
   }
 
   @override
-  Future<SyncRecord> push(String token, SyncOperation operation) async {
+  Future<SyncRecord> push(
+    String token,
+    SyncOperation operation, {
+    String? dataset,
+  }) async {
+    _checkDataset(dataset);
     pushes++;
     requests.add(
       jsonDecode(jsonEncode(operation.toJson())) as Map<String, Object?>,
@@ -92,7 +110,8 @@ class FakeSyncGateway implements TransactionSyncGateway {
   }
 
   @override
-  Future<SyncPage> pull(String token, int after) async {
+  Future<SyncPage> pull(String token, int after, {String? dataset}) async {
+    _checkDataset(dataset);
     pulls++;
     await pullGate?.future;
     if (pullFailure != null) throw pullFailure!;
@@ -104,7 +123,12 @@ class FakeSyncGateway implements TransactionSyncGateway {
   }
 
   @override
-  Future<SyncRecord> snapshot(String token, String id) async {
+  Future<SyncRecord> snapshot(
+    String token,
+    String id, {
+    String? dataset,
+  }) async {
+    _checkDataset(dataset);
     if (records[id] == null) throw const SyncFailure('not found', status: 404);
     return records[id]!;
   }

@@ -134,7 +134,9 @@ class SyncBinding {
       email = row['email'] as String,
       currency = row['currency'] as String,
       cursor = row['cursor'] as int,
-      lastSuccess = row['last_success'] as String?;
+      lastSuccess = row['last_success'] as String?,
+      datasetId = row['dataset_id'] as String?;
+  final String? datasetId;
   final String generation, server, userId, email, currency;
   final int cursor;
   final String? lastSuccess;

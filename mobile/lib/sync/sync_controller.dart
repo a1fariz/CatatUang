@@ -101,15 +101,20 @@ class TransactionSyncController extends ChangeNotifier {
     try {
       final record = await _request(
         ledger,
-        (token) => _gateway.push(token, operation),
+        (token) => _gateway.push(token, operation, dataset: ledger.datasetId),
       );
       await repository.acknowledgeSync(ledger.generation, operation, record);
     } on SyncFailure catch (failure) {
+      if (failure.code == 'sync_reset_required') rethrow;
       if (failure.status == 409) {
         try {
           final record = await _request(
             ledger,
-            (token) => _gateway.snapshot(token, operation.remoteId),
+            (token) => _gateway.snapshot(
+              token,
+              operation.remoteId,
+              dataset: ledger.datasetId,
+            ),
           );
           await repository.rejectSync(
             ledger.generation,
@@ -147,7 +152,8 @@ class TransactionSyncController extends ChangeNotifier {
       }
       final page = await _request(
         ledger,
-        (token) => _gateway.pull(token, current!.cursor),
+        (token) =>
+            _gateway.pull(token, current!.cursor, dataset: ledger.datasetId),
       );
       if (!await repository.applySyncPage(
         ledger.generation,
@@ -171,11 +177,21 @@ class TransactionSyncController extends ChangeNotifier {
     message = null;
     _notify();
     try {
-      final ledger = await repository.syncBinding();
+      var ledger = await repository.syncBinding();
       if (ledger == null) {
         throw const SyncFailure('Tautkan catatan terlebih dahulu.');
       }
       await account.refresh();
+      final target = ledger;
+      final dataset = await _request(
+        target,
+        (token) => _gateway.datasetId(token),
+      );
+      await repository.pinSyncDataset(target.generation, dataset);
+      ledger = await repository.syncBinding();
+      if (ledger == null || ledger.generation != target.generation) {
+        throw const SyncFailure('Penautan catatan sudah berubah.');
+      }
       // Resolve uncertain POST outcomes before pulling their own feed echoes.
       if (account.user?.id != ledger.userId ||
           account.serverUri.toString() != ledger.server ||

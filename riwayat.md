@@ -1,5 +1,16 @@
 # Riwayat Pengerjaan
 
+## 2026-10-26
+
+### Perlindungan dataset sinkronisasi setelah restore
+- CI GitHub commit awal `d079a12` berhasil untuk Backend dan Mobile, termasuk job dua SQLite terhadap backend nyata.
+- Tambah migrasi PostgreSQL `000004_sync_dataset.sql`, endpoint `/v1/sync/state`, dan header wajib `X-Sync-Dataset`. Pin lama ditolak sebelum mutasi maupun replay receipt; cursor sama tidak melewati guard. Push memegang shared row lock sampai commit.
+- Tambah command administrasi `sync-dataset status|rotate-after-restore` dan binary container. Rotasi harus dijalankan operator setelah restore sebelum akses klien dibuka, bukan otomatis saat restart.
+- SQLite versi 8 mempertahankan transaksi/outbox dan menambahkan pin dataset. Perubahan identitas server menghentikan sync tanpa reset cursor/antrean. Ledger lama yang sudah memiliki cursor, versi remote, atau operasi inflight tidak memin identitas baru diam-diam.
+- Verifikasi: seluruh tes Go dengan race detector dan PostgreSQL terisolasi lulus; go vet/build lulus; OpenAPI valid dengan 7 warning gaya; Flutter analyze bersih dan 89 unit/widget tests lulus. Dua database SQLite terhadap backend terbaru serta command status/rotasi di database tes lulus terpisah. Database dan proses tes dibersihkan.
+- Panduan pemulihan ada di `backend/docs/restore-sync.md`. UI rekonsiliasi, uji restore production, tagihan/pembayaran sync, dan uji dua perangkat native belum tersedia pada tahap ini. Tidak ada pemasangan aplikasi atau perubahan image emulator.
+- APK debug guard dataset berhasil dibuat, package normal dan sertifikat asli cocok, serta seluruh 19 source Dart cocok dengan kernel APK. Salinan `.tools/catat-uang-sync-debug.apk`, SHA-256 `28b8ac8cde8e98758703769a49136b03ebdbab66b374617aec085bd9b4d191d8`.
+
 ## 2026-10-25
 
 ### Integrasi sinkronisasi transaksi Flutter

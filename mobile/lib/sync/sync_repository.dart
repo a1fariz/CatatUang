@@ -6,7 +6,7 @@ extension TransactionSyncRepository on TransactionRepository {
       id INTEGER PRIMARY KEY CHECK(id=1), generation TEXT NOT NULL,
       server TEXT NOT NULL, user_id TEXT NOT NULL, email TEXT NOT NULL,
       currency TEXT NOT NULL, cursor INTEGER NOT NULL DEFAULT 0,
-      last_success TEXT)''');
+      last_success TEXT, dataset_id TEXT)''');
     await db.execute('''CREATE TABLE sync_transactions (
       remote_id TEXT PRIMARY KEY, local_id INTEGER UNIQUE,
       remote_version INTEGER NOT NULL DEFAULT 0,
@@ -29,6 +29,44 @@ extension TransactionSyncRepository on TransactionRepository {
   }
 
   Future<SyncBinding?> syncBinding() async => _binding(await _db);
+
+  Future<void> pinSyncDataset(String generation, String dataset) async {
+    if (!validSyncId(dataset)) {
+      throw const FormatException('Invalid dataset ID');
+    }
+    await (await _db).transaction((txn) async {
+      final binding = await _binding(txn);
+      if (binding?.generation != generation) {
+        throw const SyncFailure('Penautan catatan sudah berubah.');
+      }
+      if (binding!.datasetId != null) {
+        if (binding.datasetId != dataset) {
+          throw const SyncFailure(
+            'Dataset server berubah. Sinkronisasi dihentikan; catatan dan antrean lokal tetap tersimpan. Perlu rekonsiliasi.',
+            code: 'sync_reset_required',
+          );
+        }
+        return;
+      }
+      final acknowledged = Sqflite.firstIntValue(
+        await txn.rawQuery(
+          'SELECT count(*) FROM sync_transactions WHERE remote_version>0',
+        ),
+      )!;
+      final uncertain = Sqflite.firstIntValue(
+        await txn.rawQuery(
+          "SELECT count(*) FROM sync_outbox WHERE status='inflight'",
+        ),
+      )!;
+      if (binding.cursor > 0 || acknowledged > 0 || uncertain > 0) {
+        throw const SyncFailure(
+          'Ledger dari versi lama belum memiliki identitas dataset. Perlu rekonsiliasi sebelum sinkronisasi; catatan dan antrean tetap tersimpan.',
+          code: 'sync_reset_required',
+        );
+      }
+      await txn.update('sync_binding', {'dataset_id': dataset}, where: 'id=1');
+    });
+  }
 
   Future<bool> _matches(DatabaseExecutor db, String generation) async =>
       (await _binding(db))?.generation == generation;

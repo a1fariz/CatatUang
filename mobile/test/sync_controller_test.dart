@@ -217,4 +217,40 @@ void main() {
     await check;
     expect(account.hasSession, isTrue);
   });
+
+  test('dataset replacement preserves pending work and cursor', () async {
+    final id = await repo.save(localTransaction());
+    await sync.link();
+    await sync.synchronize();
+    final original = sync.binding!.datasetId;
+    final cursor = sync.binding!.cursor;
+    await repo.save(localTransaction(id: id, note: 'Belum dikirim'));
+    final calls = gateway.pushes;
+    gateway.currentDataset = syncId();
+    await sync.synchronize();
+    expect(gateway.pushes, calls);
+    expect(sync.pending, 1);
+    expect(sync.binding!.datasetId, original);
+    expect(sync.binding!.cursor, cursor);
+    expect(sync.message, contains('Dataset server berubah'));
+    expect(sync.issues, isEmpty);
+    expect(
+      (await repo.list(periodStart: DateTime(2026, 10))).single.note,
+      'Belum dikirim',
+    );
+  });
+
+  test('rotation during POST is not treated as a record conflict', () async {
+    await repo.save(localTransaction());
+    await sync.link();
+    gateway.pushFailure = const SyncFailure(
+      'Dataset changed',
+      status: 409,
+      code: 'sync_reset_required',
+    );
+    await sync.synchronize();
+    expect(sync.pending, 1);
+    expect(sync.issues, isEmpty);
+    expect(gateway.records, isEmpty);
+  });
 }

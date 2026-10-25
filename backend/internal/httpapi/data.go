@@ -38,8 +38,9 @@ func (a *API) serveData(w http.ResponseWriter, r *http.Request, id string) bool 
 	me := path == "/v1/me"
 	logout := path == "/v1/auth/logout" || path == "/v1/auth/logout-all"
 	syncCollection := path == "/v1/sync/transactions"
+	syncState := path == "/v1/sync/state"
 	syncEntity := len(parts) == 4 && parts[0] == "v1" && parts[1] == "sync" && parts[2] == "transactions" && service.ValidID(parts[3])
-	if !collection && !entity && !me && !logout && !syncCollection && !syncEntity {
+	if !collection && !entity && !me && !logout && !syncCollection && !syncEntity && !syncState {
 		return false
 	}
 	methods := "GET, HEAD"
@@ -70,7 +71,7 @@ func (a *API) serveData(w http.ResponseWriter, r *http.Request, id string) bool 
 		a.json(w, r, 200, user)
 		return true
 	}
-	if syncCollection || syncEntity {
+	if syncCollection || syncEntity || syncState {
 		a.transactionSync(w, r, id, user.ID, syncEntity)
 		return true
 	}
@@ -273,7 +274,7 @@ func (a *API) serviceError(w http.ResponseWriter, r *http.Request, id string, er
 	status, code, message := 500, "internal_error", "Terjadi kesalahan server."
 	switch {
 	case errors.Is(err, service.ErrSyncReset):
-		status, code, message = 409, "sync_reset_required", "Posisi sinkronisasi lebih baru dari server. Perlu rekonsiliasi data."
+		status, code, message = 409, "sync_reset_required", "Dataset atau posisi sinkronisasi berubah. Perlu rekonsiliasi data."
 	case errors.Is(err, service.ErrInvalid):
 		status, code, message = 422, "invalid_input", "Periksa kembali data yang diisi."
 	case errors.Is(err, service.ErrUnauthorized):
