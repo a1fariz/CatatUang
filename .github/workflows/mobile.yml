@@ -133,6 +133,13 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      - name: Make room on disposable native runner
+        run: |
+          df -h "$RUNNER_TEMP"
+          # Neither SDK is used by this Go/Flutter/Java job. This runner is
+          # ephemeral; no developer workstation or persisted AVD is touched.
+          sudo rm -rf /usr/share/dotnet /opt/ghc
+          df -h "$RUNNER_TEMP"
       - uses: actions/cache@v4
         with:
           path: |
@@ -151,6 +158,9 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
+          disk-size: 2048M
+          ram-size: 2048M
+          emulator-boot-timeout: 300
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           script: bash mobile/scripts/run-native-ci.sh
