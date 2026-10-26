@@ -158,6 +158,22 @@ jobs:
       - name: Build isolated integration APKs before starting emulator
         run: bash scripts/build-native-ci.sh
         working-directory: mobile
+      - name: Reclaim compilation space before creating disposable AVD
+        run: |
+          # APKs are already copied to RUNNER_TEMP and drive uses those binaries.
+          # No native compilation follows. These paths belong only to this VM.
+          test -f "$RUNNER_TEMP/catatuang-native-apks/account.apk"
+          test -f "$RUNNER_TEMP/catatuang-native-apks/storage.apk"
+          test "$ANDROID_HOME" = /usr/local/lib/android/sdk
+          du -sh mobile/build "$ANDROID_HOME/ndk" "$ANDROID_HOME/cmake" || true
+          rm -rf mobile/build
+          sudo rm -rf /usr/local/lib/android/sdk/ndk /usr/local/lib/android/sdk/cmake
+          # Version-specific Gradle transforms are large and cannot be used by
+          # the prebuilt runtime tests. Retain dependency files for cache save.
+          find "$HOME/.gradle/caches" -mindepth 1 -maxdepth 1 -type d -name '[0-9]*' -exec rm -rf {} +
+          df -h "$RUNNER_TEMP"
+          available_kb=$(df -Pk "$RUNNER_TEMP" | awk 'NR==2 {print $4}')
+          test "$available_kb" -ge 12582912
       - name: Native plugins and account on fresh integration package
         # APK compilation is finished before starting QEMU.
         uses: reactivecircus/android-emulator-runner@v2
