@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'account_controller.dart';
 import 'password_screen.dart';
 import 'sessions_screen.dart';
+import 'recovery_screen.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key, required this.controller});
@@ -151,6 +152,25 @@ class _AccountScreenState extends State<AccountScreen> {
                       : 'Sesi tersimpan, belum dapat diperiksa.',
                 ),
                 const SizedBox(height: 20),
+                Text(
+                  account.user!.emailVerified
+                      ? 'Email terverifikasi.'
+                      : 'Email belum terverifikasi.',
+                ),
+                if (!account.user!.emailVerified)
+                  TextButton(
+                    onPressed: account.busy
+                        ? null
+                        : () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => AccountRecoveryScreen(
+                                controller: account,
+                                verifyEmail: true,
+                              ),
+                            ),
+                          ),
+                    child: const Text('Verifikasi email'),
+                  ),
                 OutlinedButton.icon(
                   onPressed: account.busy ? null : account.refresh,
                   icon: const Icon(Icons.refresh),
@@ -293,6 +313,19 @@ class _AccountScreenState extends State<AccountScreen> {
                           onPressed: account.canAuthenticate ? _submit : null,
                           child: Text(_register ? 'Daftar' : 'Masuk'),
                         ),
+                        if (!_register)
+                          TextButton(
+                            onPressed: account.busy
+                                ? null
+                                : () => Navigator.of(context).push<void>(
+                                    MaterialPageRoute(
+                                      builder: (_) => AccountRecoveryScreen(
+                                        controller: account,
+                                      ),
+                                    ),
+                                  ),
+                            child: const Text('Lupa kata sandi'),
+                          ),
                         TextButton(
                           onPressed: account.busy
                               ? null

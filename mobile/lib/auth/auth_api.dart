@@ -52,7 +52,15 @@ abstract interface class AuthGateway {
   void close();
 }
 
-class HttpAuthGateway implements AuthGateway {
+abstract interface class AccountRecoveryGateway {
+  Future<void> requestPasswordReset(String email);
+  Future<void> confirmPasswordReset(String token, String password);
+  Future<void> requestEmailVerification(String session);
+  Future<void> confirmEmailVerification(String token);
+  void close();
+}
+
+class HttpAuthGateway implements AuthGateway, AccountRecoveryGateway {
   HttpAuthGateway({
     required this.baseUri,
     http.Client Function()? clientFactory,
@@ -65,6 +73,42 @@ class HttpAuthGateway implements AuthGateway {
   final Duration timeout;
   final Set<http.Client> _active = {};
   bool _closed = false;
+
+  @override
+  Future<void> requestPasswordReset(String email) async {
+    await _request(
+      'POST',
+      'v1/auth/password-reset/request',
+      body: {'email': email.trim().toLowerCase()},
+    );
+  }
+
+  @override
+  Future<void> confirmPasswordReset(String token, String password) async {
+    await _request(
+      'POST',
+      'v1/auth/password-reset/confirm',
+      body: {'token': token, 'new_password': password},
+    );
+  }
+
+  @override
+  Future<void> requestEmailVerification(String session) async {
+    await _request(
+      'POST',
+      'v1/auth/email-verification/request',
+      token: session,
+    );
+  }
+
+  @override
+  Future<void> confirmEmailVerification(String token) async {
+    await _request(
+      'POST',
+      'v1/auth/email-verification/confirm',
+      body: {'token': token},
+    );
+  }
 
   @override
   Future<AuthSession> authenticate(
@@ -171,6 +215,16 @@ class HttpAuthGateway implements AuthGateway {
           request.body = jsonEncode(body);
         }
         final response = await client.send(request);
+        final recovery =
+            path.startsWith('v1/auth/password-reset/') ||
+            path.startsWith('v1/auth/email-verification/');
+        if (recovery &&
+            response.statusCode >= 200 &&
+            response.statusCode < 300) {
+          final expected = path.endsWith('/request') ? 202 : 204;
+          if (response.statusCode != expected) throw _invalidResponse;
+          if (expected == 204) return <String, dynamic>{};
+        }
         if (response.statusCode == 204 &&
             (path.startsWith('v1/auth/logout') ||
                 path == 'v1/auth/change-password' ||
@@ -224,6 +278,19 @@ class HttpAuthGateway implements AuthGateway {
   }
 
   AuthFailure _httpFailure(int status, String? retry, String path) {
+    if ((path.contains('password-reset/') ||
+            path.contains('email-verification/')) &&
+        status != 429 &&
+        status != 401) {
+      return AuthFailure(
+        status == 422
+            ? 'Periksa email, kode, dan kata sandi. Kode mungkin kedaluwarsa atau sudah digunakan.'
+            : status == 503
+            ? 'Layanan email belum tersedia. Coba lagi nanti.'
+            : 'Permintaan belum dapat dipastikan. Jangan ulangi konfirmasi otomatis; periksa akun atau masuk dengan kata sandi baru.',
+        status: status,
+      );
+    }
     if (path.startsWith('v1/auth/sessions') && status != 401) {
       return AuthFailure(switch (status) {
         404 => 'Sesi sudah tidak tersedia. Perbarui daftar sesi.',

@@ -149,7 +149,14 @@ void main() {
     await tester.tap(find.byKey(const Key('auth_submit')));
     await tester.pumpAndSettle();
     expect(find.text(testUser.email), findsOneWidget);
-    await tester.ensureVisible(find.text('Keluar dari akun'));
+    await tester.scrollUntilVisible(
+      find.text('Keluar dari akun').hitTestable(),
+      200,
+      scrollable: find.descendant(
+        of: find.byType(AccountScreen),
+        matching: find.byType(Scrollable),
+      ),
+    );
     await tester.tap(find.text('Keluar dari akun'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Keluar'));

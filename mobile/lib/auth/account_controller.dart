@@ -19,6 +19,7 @@ class AccountController extends ChangeNotifier {
   final SessionStore _store;
   final DateTime Function() _now;
   AuthSession? _session;
+  AuthUser? _currentUser;
   Timer? _expiryTimer;
   Timer? _retryTimer;
   DateTime? _blockedUntil;
@@ -31,7 +32,7 @@ class AccountController extends ChangeNotifier {
   bool storageProblem = false;
   String? message;
 
-  AuthUser? get user => _session?.user;
+  AuthUser? get user => _currentUser ?? _session?.user;
   Uri get serverUri => _gateway.baseUri;
 
   Future<T> authorized<T>({
@@ -217,6 +218,7 @@ class AccountController extends ChangeNotifier {
           await _invalidate('Sesi berakhir. Silakan masuk kembali.');
         } else {
           _session = stored;
+          _currentUser = stored.user;
           _armExpiry();
           await _check(stored);
         }
@@ -276,6 +278,7 @@ class AccountController extends ChangeNotifier {
       }
       if (_disposed) return false;
       _session = received;
+      _currentUser = received.user;
       verified = true;
       _armExpiry();
       return true;
@@ -326,6 +329,7 @@ class AccountController extends ChangeNotifier {
       }
       verified = true;
       message = null;
+      _currentUser = user;
     } on AuthFailure catch (failure) {
       if (_disposed || _session != session) return;
       if (failure.status == 401) {
@@ -373,6 +377,7 @@ class AccountController extends ChangeNotifier {
 
   Future<void> _invalidate(String? notice) async {
     _session = null;
+    _currentUser = null;
     verified = false;
     message = notice;
     _expiryTimer?.cancel();

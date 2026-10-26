@@ -25,3 +25,5 @@ Flutter tahap 2 selesai: antrean/UUID/payment history, persetujuan terpisah, kon
 ## Tahap 3: server email akun
 
 Migration 7, endpoint verifikasi/reset, hash token sekali pakai, revokasi sesi, encrypted mail outbox, worker lease/retry dan STARTTLS selesai. Seluruh tes backend PostgreSQL/race serta SMTP loopback lulus. OpenAPI 0.8.0 valid. UI Flutter dan pengujian regresinya sedang diselesaikan; belum ada pengiriman lewat provider nyata.
+
+UI verifikasi/lupa password selesai dan tes kontrak/form/sesi lulus; metadata status email diperbarui tanpa mengubah token/timer. Tahap 3 siap dipakai dengan SMTP yang dikonfigurasi. Tahap 4 menyiapkan konfigurasi production dan pemeriksaan operasional lokal; publikasi nyata tetap menunggu hosting/domain.

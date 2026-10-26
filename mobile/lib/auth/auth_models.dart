@@ -1,7 +1,12 @@
 class AuthUser {
-  const AuthUser({required this.id, required this.email});
+  const AuthUser({
+    required this.id,
+    required this.email,
+    this.emailVerified = false,
+  });
   final String id;
   final String email;
+  final bool emailVerified;
 
   factory AuthUser.fromJson(Map<String, dynamic> value) {
     final id = value['id'];
@@ -15,10 +20,21 @@ class AuthUser {
         !RegExp(r'^[^\s@]+@[^\s@]+$').hasMatch(email)) {
       throw const FormatException('Invalid account response');
     }
-    return AuthUser(id: id, email: email);
+    if (value['email_verified'] != null && value['email_verified'] is! bool) {
+      throw const FormatException('Invalid email status');
+    }
+    return AuthUser(
+      id: id,
+      email: email,
+      emailVerified: value['email_verified'] == true,
+    );
   }
 
-  Map<String, Object> toJson() => {'id': id, 'email': email};
+  Map<String, Object> toJson() => {
+    'id': id,
+    'email': email,
+    'email_verified': emailVerified,
+  };
 }
 
 class AuthSession {
