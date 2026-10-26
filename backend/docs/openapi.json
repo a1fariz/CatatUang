@@ -4908,6 +4908,7 @@
             }
           }
         ],
+        "description": "Returns at most one payment-heavy aggregate per page, even when a larger limit is requested. Follow has_more and cursor.",
         "responses": {
           "200": {
             "description": "Success",

@@ -12,6 +12,27 @@ tz.Location billZone(String name) {
   return tz.getLocation(name);
 }
 
+DateTime billCalendarDate(DateTime instant, String? zone) =>
+    zone == null ? instant : tz.TZDateTime.from(instant, billZone(zone));
+DateTime billDueOnDate(DateTime date, String? zone) => zone == null
+    ? DateTime(date.year, date.month, date.day, 9)
+    : tz.TZDateTime(
+        billZone(zone),
+        date.year,
+        date.month,
+        date.day,
+        9,
+      ).toLocal();
+int billDaysLate(Bill bill, DateTime now) {
+  final today = billCalendarDate(now, bill.timezone),
+      due = billCalendarDate(bill.dueAt, bill.timezone);
+  return DateTime.utc(
+    today.year,
+    today.month,
+    today.day,
+  ).difference(DateTime.utc(due.year, due.month, due.day)).inDays;
+}
+
 DateTime nextZonedBillDue(Bill bill) {
   final zone = billZone(bill.timezone!);
   final local = tz.TZDateTime.from(bill.dueAt, zone);

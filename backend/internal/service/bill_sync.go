@@ -239,6 +239,9 @@ func (s *Service) PullBills(ctx context.Context, user string, after int64, limit
 	if after < 0 || after > MaxAmount || limit < 1 || limit > 100 {
 		return page, ErrInvalid
 	}
+	// Payment-heavy aggregate snapshots are much larger than transactions.
+	// Returning fewer than the requested upper bound keeps each response bounded.
+	limit = 1
 	tx, err := s.Pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
 	if err != nil {
 		return page, err

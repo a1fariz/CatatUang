@@ -102,3 +102,34 @@ func TestBillSyncLifecycle(t *testing.T) {
 	c.request("POST", "/v1/sync/bills", owner.AccessToken, del, map[string]string{"X-Sync-Dataset": oldDataset}, 409)
 	c.request("GET", "/v1/sync/bills", owner.AccessToken, nil, map[string]string{"X-Sync-Dataset": ""}, 428)
 }
+
+func TestBillAggregatePublishesOnlyCompletePaymentSnapshot(t *testing.T) {
+	c := integrationClient(t)
+	owner := c.register("atomic-bill@example.com")
+	due := time.Date(2026, 10, 26, 1, 0, 0, 0, time.UTC)
+	paid := due.Add(time.Hour)
+	id := service.NewID()
+	payload := service.BillSyncPayload{BillInput: service.BillInput{Name: "Listrik", AmountMinor: 100000, CurrencyCode: "IDR", DueAt: due, Timezone: "Etc/UTC", Recurrence: "once", RecurrenceDay: 26}, Status: "paid", PaidAt: &paid, Payments: []service.Payment{{ID: service.NewID(), BillID: id, DueAt: due, AmountMinor: 100000, CurrencyCode: "IDR", PaidAt: paid}}}
+	mutation := service.BillSyncMutation{OperationID: service.NewID(), ID: id, Payload: &payload}
+	result := decodeResponse[service.BillSyncRecord](t, c.request("POST", "/v1/sync/bills", owner.AccessToken, mutation, nil, 200))
+	page := decodeResponse[service.BillSyncPage](t, c.request("GET", "/v1/sync/bills?limit=100", owner.AccessToken, nil, nil, 200))
+	if len(page.Items) != 1 || page.HasMore || page.Cursor != 1 || page.Items[0].Record.Version != result.Version || len(page.Items[0].Record.Payments) != 1 {
+		t.Fatal("feed exposed partial payment aggregate")
+	}
+}
+
+func TestBillPaymentHistoryBound(t *testing.T) {
+	c := integrationClient(t)
+	owner := c.register("history-bound@example.com")
+	ctx := context.Background()
+	due := time.Date(2026, 10, 26, 1, 0, 0, 0, time.UTC)
+	bill := decodeResponse[service.Bill](t, c.request("POST", "/v1/bills", owner.AccessToken, service.BillInput{Name: "Internet", AmountMinor: 1, CurrencyCode: "IDR", DueAt: due, Timezone: "Etc/UTC", Recurrence: "weekly", RecurrenceDay: 26}, nil, 201))
+	if _, err := c.pool.Exec(ctx, `INSERT INTO bill_payments(id,user_id,bill_id,due_at,amount_minor,currency_code,paid_at) SELECT gen_random_uuid(),$1,$2,$3::timestamptz-make_interval(days=>i),1,'IDR',$3::timestamptz FROM generate_series(1,2000) i`, owner.User.ID, bill.ID, due); err != nil {
+		t.Fatal(err)
+	}
+	c.request("POST", "/v1/bills/"+bill.ID+"/pay", owner.AccessToken, map[string]any{"due_at": due}, map[string]string{"If-Match": `"1"`, "Idempotency-Key": service.NewID()}, 422)
+	var count int
+	if err := c.pool.QueryRow(ctx, `SELECT count(*) FROM bill_payments WHERE bill_id=$1`, bill.ID).Scan(&count); err != nil || count != 2000 {
+		t.Fatal("history changed at bound")
+	}
+}

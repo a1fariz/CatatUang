@@ -163,6 +163,13 @@ func (s *Service) PayBill(ctx context.Context, user, id, key string, version int
 	if b.Version != version || b.Status != "active" || !b.DueAt.Equal(due) {
 		return PaymentResult{}, ErrConflict
 	}
+	var historyCount int
+	if err = tx.QueryRow(ctx, `SELECT count(*) FROM bill_payments WHERE user_id=$1 AND bill_id=$2`, user, id).Scan(&historyCount); err != nil {
+		return PaymentResult{}, err
+	}
+	if historyCount >= 2000 {
+		return PaymentResult{}, ErrInvalid
+	}
 	payment, err := scanPayment(tx.QueryRow(ctx, `INSERT INTO bill_payments(id,user_id,bill_id,due_at,amount_minor,currency_code,paid_at) VALUES($1,$2,$3,$4,$5,$6,now()) RETURNING `+paymentColumns, key, user, id, b.DueAt, b.AmountMinor, b.CurrencyCode))
 	if err != nil {
 		return PaymentResult{}, err

@@ -31,6 +31,25 @@ BillSyncRecord receipt(SyncOperation op, int version) =>
     });
 
 void main() {
+  test(
+    'editing and overdue dates use originating calendar across travel and DST',
+    () {
+      final instant = billDueOnDate(DateTime(2026, 10, 26), 'Asia/Jakarta');
+      expect(instant.toUtc(), DateTime.utc(2026, 10, 26, 2));
+      expect(billCalendarDate(instant, 'America/New_York').day, 25);
+      final zoned = Bill(
+        id: 1,
+        name: 'DST',
+        amount: 1,
+        dueAt: DateTime.utc(2026, 3, 7, 14),
+        recurrence: BillRecurrence.weekly,
+        reminderMinutes: null,
+        status: BillStatus.active,
+        timezone: 'America/New_York',
+      );
+      expect(billDaysLate(zoned, DateTime.utc(2026, 3, 8, 13)), 1);
+    },
+  );
   setUpAll(sqfliteFfiInit);
   late Directory folder;
   late TransactionRepository a, b;

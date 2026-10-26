@@ -242,9 +242,7 @@ class _BillsScreenState extends State<BillsScreen> {
       separatorBuilder: (_, _) => const Divider(height: 1, indent: 64),
       itemBuilder: (context, index) {
         final bill = _bills[index];
-        final daysLate = DateUtils.dateOnly(
-          DateTime.now(),
-        ).difference(DateUtils.dateOnly(bill.dueAt)).inDays;
+        final daysLate = billDaysLate(bill, DateTime.now());
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 4,
@@ -261,7 +259,8 @@ class _BillsScreenState extends State<BillsScreen> {
           ),
           title: Text(bill.name),
           subtitle: Text(
-            '${_billDueLabel(bill.dueAt, daysLate)} · ${_recurrenceLabel(bill.recurrence)}'
+            '${_billDueLabel(billCalendarDate(bill.dueAt, bill.timezone), daysLate)} · ${_recurrenceLabel(bill.recurrence)}'
+            '${bill.timezone == null ? '' : ' · ${bill.timezone}'}'
             '${bill.reminderMinutes == null || !widget.settings.notificationsEnabled ? '' : ' · Pengingat aktif'}',
           ),
           isThreeLine: true,
@@ -432,7 +431,9 @@ class _BillFormState extends State<BillForm> {
               OutlinedButton.icon(
                 onPressed: _saving ? null : _pickDate,
                 icon: const Icon(Icons.calendar_today),
-                label: Text('Jatuh tempo: ${_dateLabel(_dueAt)}'),
+                label: Text(
+                  'Jatuh tempo: ${_dateLabel(billCalendarDate(_dueAt, widget.bill?.timezone))}${widget.bill?.timezone == null ? '' : ' (${widget.bill!.timezone})'}',
+                ),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<int?>(
@@ -480,13 +481,13 @@ class _BillFormState extends State<BillForm> {
   Future<void> _pickDate() async {
     final date = await showDatePicker(
       context: context,
-      initialDate: _dueAt,
+      initialDate: billCalendarDate(_dueAt, widget.bill?.timezone),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
     if (date != null) {
       setState(() {
-        _dueAt = DateTime(date.year, date.month, date.day, 9);
+        _dueAt = billDueOnDate(date, widget.bill?.timezone);
         _recurrenceDay = date.day;
       });
     }

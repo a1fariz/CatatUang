@@ -33,3 +33,9 @@ UI verifikasi/lupa password selesai dan tes kontrak/form/sesi lulus; metadata st
 Konfigurasi Caddy/Compose production, trust proxy /32, grant runtime/mail terbatas, backup custom+checksum, restore-check clone, ops-status, loadcheck, dan runbook ditambahkan. Tes role dan restore fixture berisi transaksi/tagihan/pembayaran lulus, tanpa merestore ke source. Caddyfile/Compose valid secara lokal. Docker daemon lokal belum aktif; smoke container masuk CI. Hasil load/regresi dan final CI dicatat pada penutupan.
 
 Load readiness lokal: 100 request, concurrency 4, 0 gagal, p95 6,147 ms (bukan SLA production). ops-status schema ready, antrean kosong. Dua integrasi ledger transaksi/tagihan Go/PostgreSQL lulus lagi dengan skema 7. Image Caddy 2.11.7-alpine terverifikasi tersedia. Tahap 4 selesai untuk konfigurasi/pengujian lokal; deploy/TLS publik menunggu domain/hosting.
+
+## Tahap 5: validasi akhir
+
+124 tes Flutter lulus, dua integrasi API nyata lulus, analyzer bersih. APK final paket reguler/signature lama diverifikasi serta cocok dengan 32 source Dart. Guard release menolak keystore yang belum disediakan. Native test terisolasi SQLite/backup/notifikasi serta akun ditambahkan ke emulator CI disposable; hasil eksekusi belum diasumsikan. CI terdahulu menemukan satu file belum diformat dan pemeriksaan container setelah cleanup; keduanya dibetulkan dalam commit terpisah. Detail signing/perangkat tersisa: mobile/docs/native-verification.md.
+
+Review akhir: migration 8 memastikan snapshot tagihan atomik beserta history, ordinary payment dibatasi 2000 history, feed satu agregat/halaman dan review maksimal 8 MiB. Kalender edit/tampilan dan hitungan keterlambatan memakai zona asal termasuk DST. Seluruh backend race/PostgreSQL/restore-check lulus dengan skema 8; analyzer dan 18 tes Flutter terkait lulus. CI Backend/Mobile untuk perbaikan sebelumnya (`6f4155b`) keduanya hijau. Konfigurasi/eksekusi native CI dituntaskan pada progres berikutnya.

@@ -96,7 +96,7 @@ schemas.BillSyncRecord=object({...schemas.Bill.properties,deleted:{type:'boolean
 schemas.BillSyncChange=object({sequence:integer(1,9007199254740991),record:ref('BillSyncRecord')});
 schemas.BillSyncPage=object({items:{type:'array',items:ref('BillSyncChange')},cursor:integer(0,9007199254740991),has_more:{type:'boolean'}});
 paths['/v1/sync/bills']={
- get:{...auth,operationId:'pullBillChanges',parameters:syncPagination,responses:{200:response('BillSyncPage'),...fail(401,409,422,500,503)}},
+ get:{...auth,operationId:'pullBillChanges',parameters:syncPagination,description:'Returns at most one payment-heavy aggregate per page, even when a larger limit is requested. Follow has_more and cursor.',responses:{200:response('BillSyncPage'),...fail(401,409,422,500,503)}},
  head:{...auth,operationId:'pullBillChangesHead',parameters:syncPagination,responses:{200:response(null),...fail(401,409,422,500,503)}},
  post:{...auth,operationId:'pushBillChange',requestBody:body('BillSyncMutation'),description:'Atomic bill aggregate mutation and immutable payment history with durable operation receipt. Existing payments cannot be removed or changed; each due occurrence and payment ID is unique. Full payload limited to 512 KiB and 2000 payments. Stale versions require explicit conflict resolution. Dataset replacement blocks replay as well as new mutations.',responses:{200:response('BillSyncRecord'),...fail(400,401,409,413,415,422,500,503)}}
 };

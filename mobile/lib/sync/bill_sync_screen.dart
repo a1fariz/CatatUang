@@ -340,6 +340,8 @@ class _BillSyncScreenState extends State<BillSyncScreen> {
       );
       final dataset = await _request(b, (token) => _gateway.datasetId(token));
       final records = <String, BillSyncRecord>{};
+      final recordSizes = <String, int>{};
+      var snapshotBytes = 0;
       var cursor = 0, complete = false;
       for (var i = 0; i < 2000; i++) {
         final page = await _request(
@@ -352,6 +354,14 @@ class _BillSyncScreenState extends State<BillSyncScreen> {
           ),
         );
         for (final record in _pageRecords(page, cursor)) {
+          final size = utf8.encode(jsonEncode(record.json)).length;
+          snapshotBytes += size - (recordSizes[record.id] ?? 0);
+          if (snapshotBytes > 8 * 1024 * 1024) {
+            throw const SyncFailure(
+              'Snapshot tagihan melebihi batas pemulihan perangkat. Data lokal tetap disimpan.',
+            );
+          }
+          recordSizes[record.id] = size;
           records[record.id] = record;
         }
         cursor = page['cursor'] as int;
