@@ -325,6 +325,8 @@ class _BillFormState extends State<BillForm> {
   late int _recurrenceDay;
   int? _reminderMinutes;
   bool _saving = false;
+  bool _zoneLoaded = false;
+  String? _timezone;
   String? _error;
 
   @override
@@ -344,6 +346,31 @@ class _BillFormState extends State<BillForm> {
         );
     _recurrenceDay = bill?.recurrenceDay ?? _dueAt.day;
     _reminderMinutes = bill?.reminderMinutes;
+    _timezone = bill?.timezone;
+    _zoneLoaded = bill != null;
+    if (bill == null) {
+      _loadDefaultZone();
+    }
+  }
+
+  Future<void> _loadDefaultZone() async {
+    try {
+      final zone = await widget.repository.defaultBillTimezone();
+      if (!mounted) return;
+      final date = billCalendarDate(DateTime.now(), zone);
+      setState(() {
+        _timezone = zone;
+        _dueAt = billDueOnDate(date, zone);
+        _recurrenceDay = date.day;
+        _zoneLoaded = true;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error = 'Zona tagihan gagal dibaca. Kembali lalu coba lagi.',
+        );
+      }
+    }
   }
 
   @override
@@ -429,10 +456,10 @@ class _BillFormState extends State<BillForm> {
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed: _saving ? null : _pickDate,
+                onPressed: _saving || !_zoneLoaded ? null : _pickDate,
                 icon: const Icon(Icons.calendar_today),
                 label: Text(
-                  'Jatuh tempo: ${_dateLabel(billCalendarDate(_dueAt, widget.bill?.timezone))}${widget.bill?.timezone == null ? '' : ' (${widget.bill!.timezone})'}',
+                  'Jatuh tempo: ${_dateLabel(billCalendarDate(_dueAt, _timezone))}${_timezone == null ? '' : ' ($_timezone)'}',
                 ),
               ),
               const SizedBox(height: 12),
@@ -467,8 +494,10 @@ class _BillFormState extends State<BillForm> {
                 ),
               ],
               const SizedBox(height: 16),
+              if (!_zoneLoaded && _error == null)
+                const LinearProgressIndicator(),
               FilledButton(
-                onPressed: _saving ? null : _save,
+                onPressed: _saving || !_zoneLoaded ? null : _save,
                 child: Text(_saving ? 'Menyimpan...' : 'Simpan tagihan'),
               ),
             ],
@@ -481,19 +510,20 @@ class _BillFormState extends State<BillForm> {
   Future<void> _pickDate() async {
     final date = await showDatePicker(
       context: context,
-      initialDate: billCalendarDate(_dueAt, widget.bill?.timezone),
+      initialDate: billCalendarDate(_dueAt, _timezone),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
     if (date != null) {
       setState(() {
-        _dueAt = billDueOnDate(date, widget.bill?.timezone);
+        _dueAt = billDueOnDate(date, _timezone);
         _recurrenceDay = date.day;
       });
     }
   }
 
   Future<void> _save() async {
+    if (!_zoneLoaded) return;
     if (!_formKey.currentState!.validate()) return;
     setState(() {
       _saving = true;
@@ -524,7 +554,7 @@ class _BillFormState extends State<BillForm> {
       recurrenceDay: _recurrenceDay,
       reminderMinutes: permissionGranted ? requestedReminder : null,
       status: BillStatus.active,
-      timezone: widget.bill?.timezone,
+      timezone: _timezone,
     );
     try {
       final id = await widget.repository.saveBill(bill);

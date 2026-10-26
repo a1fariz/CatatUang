@@ -28,6 +28,10 @@ extension BillSyncRepository on TransactionRepository {
   }
 
   Future<SyncBinding?> billSyncBinding() async => _billBinding(await _db);
+  Future<String?> defaultBillTimezone() async {
+    final rows = await (await _db).query('bill_sync_binding');
+    return rows.firstOrNull?['timezone'] as String?;
+  }
 
   Future<Map<String, Object?>> _billRecoverySnapshot(
     DatabaseExecutor txn,

@@ -10,6 +10,7 @@ import 'package:catat_uang/settings_screen.dart';
 import 'package:catat_uang/settings.dart';
 import 'package:catat_uang/transaction.dart';
 import 'package:catat_uang/transaction_repository.dart';
+import 'package:catat_uang/sync/bill_sync_models.dart';
 
 class _NoopReminderService extends ReminderService {
   final scheduled = <Bill>[];
@@ -33,6 +34,48 @@ class _NoopReminderService extends ReminderService {
 
 void main() {
   setUpAll(sqfliteFfiInit);
+  testWidgets(
+    'new linked bill form preserves ledger wall clock in a different timezone',
+    (tester) async {
+      final repository = TransactionRepository(
+        factory: databaseFactoryFfiNoIsolate,
+        databasePath: inMemoryDatabasePath,
+      );
+      addTearDown(repository.close);
+      await repository.linkBillSync(
+        server: Uri.parse('https://api.example.com/'),
+        userId: '11111111-1111-4111-8111-111111111111',
+        email: 'test@example.com',
+        timezone: 'America/New_York',
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BillsScreen(
+            repository: repository,
+            reminders: _NoopReminderService(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(find.text('Tambah tagihan'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('America/New_York'), findsOneWidget);
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        'Tagihan zona asal',
+      );
+      await tester.enterText(find.byType(TextFormField).at(1), '125000');
+      await tester.ensureVisible(find.text('Simpan tagihan'));
+      await tester.tap(find.text('Simpan tagihan'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+      final saved = (await repository.listBills()).single;
+      expect(saved.timezone, 'America/New_York');
+      expect(billCalendarDate(saved.dueAt, saved.timezone).hour, 9);
+    },
+  );
 
   TransactionRepository createRepository() => TransactionRepository(
     factory: databaseFactoryFfiNoIsolate,

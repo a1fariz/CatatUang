@@ -23,6 +23,13 @@ jobs:
           flutter-version: '3.47.6'
           channel: stable
           cache: true
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-catatuang-gradle-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/gradle/wrapper/gradle-wrapper.properties', 'mobile/pubspec.lock') }}
+          restore-keys: ${{ runner.os }}-catatuang-gradle-
       - run: flutter pub get
       - run: dart format --output=none --set-exit-if-changed lib test integration_test test_driver
       - run: flutter analyze --no-pub
@@ -126,6 +133,13 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-catatuang-gradle-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/gradle/wrapper/gradle-wrapper.properties', 'mobile/pubspec.lock') }}
+          restore-keys: ${{ runner.os }}-catatuang-gradle-
       - run: go run ./cmd/migrate up && go build -o /tmp/catatuang-native-api ./cmd/api
         working-directory: backend
       - run: flutter pub get
