@@ -99,7 +99,6 @@ jobs:
           cd mobile
           flutter test --no-pub --concurrency=1 --dart-define=SYNC_TEST_API_URL=http://127.0.0.1:18089 test/sync_backend_test.dart test/bill_sync_backend_test.dart
   native-android:
-    needs: android
     runs-on: ubuntu-latest
     timeout-minutes: 45
     services:
@@ -156,7 +155,11 @@ jobs:
         working-directory: backend
       - run: flutter pub get
         working-directory: mobile
+      - name: Build isolated integration APKs before starting emulator
+        run: bash scripts/build-native-ci.sh
+        working-directory: mobile
       - name: Native plugins and account on fresh integration package
+        # APK compilation is finished before starting QEMU.
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
