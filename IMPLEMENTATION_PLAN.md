@@ -27,3 +27,9 @@ Flutter tahap 2 selesai: antrean/UUID/payment history, persetujuan terpisah, kon
 Migration 7, endpoint verifikasi/reset, hash token sekali pakai, revokasi sesi, encrypted mail outbox, worker lease/retry dan STARTTLS selesai. Seluruh tes backend PostgreSQL/race serta SMTP loopback lulus. OpenAPI 0.8.0 valid. UI Flutter dan pengujian regresinya sedang diselesaikan; belum ada pengiriman lewat provider nyata.
 
 UI verifikasi/lupa password selesai dan tes kontrak/form/sesi lulus; metadata status email diperbarui tanpa mengubah token/timer. Tahap 3 siap dipakai dengan SMTP yang dikonfigurasi. Tahap 4 menyiapkan konfigurasi production dan pemeriksaan operasional lokal; publikasi nyata tetap menunggu hosting/domain.
+
+## Tahap 4: operasional lokal
+
+Konfigurasi Caddy/Compose production, trust proxy /32, grant runtime/mail terbatas, backup custom+checksum, restore-check clone, ops-status, loadcheck, dan runbook ditambahkan. Tes role dan restore fixture berisi transaksi/tagihan/pembayaran lulus, tanpa merestore ke source. Caddyfile/Compose valid secara lokal. Docker daemon lokal belum aktif; smoke container masuk CI. Hasil load/regresi dan final CI dicatat pada penutupan.
+
+Load readiness lokal: 100 request, concurrency 4, 0 gagal, p95 6,147 ms (bukan SLA production). ops-status schema ready, antrean kosong. Dua integrasi ledger transaksi/tagihan Go/PostgreSQL lulus lagi dengan skema 7. Image Caddy 2.11.7-alpine terverifikasi tersedia. Tahap 4 selesai untuk konfigurasi/pengujian lokal; deploy/TLS publik menunggu domain/hosting.

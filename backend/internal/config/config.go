@@ -3,9 +3,11 @@ package config
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -17,6 +19,7 @@ type Config struct {
 	DBTimeout       time.Duration
 	ShutdownTimeout time.Duration
 	Mail            MailConfig
+	TrustedProxies  []netip.Prefix
 }
 
 func Load() (Config, error) { return Parse(os.Getenv) }
@@ -69,6 +72,19 @@ func Parse(get func(string) string) (Config, error) {
 	c.Mail, err = parseMail(get, c.Environment)
 	if err != nil {
 		return c, err
+	}
+	if raw := get("TRUSTED_PROXY_CIDRS"); raw != "" {
+		parts := strings.Split(raw, ",")
+		if len(parts) > 32 {
+			return c, fmt.Errorf("too many trusted proxy CIDRs")
+		}
+		for _, part := range parts {
+			prefix, parseErr := netip.ParsePrefix(strings.TrimSpace(part))
+			if parseErr != nil || prefix.Bits() == 0 {
+				return c, fmt.Errorf("TRUSTED_PROXY_CIDRS requires explicit non-default CIDR ranges")
+			}
+			c.TrustedProxies = append(c.TrustedProxies, prefix.Masked())
+		}
 	}
 	return c, nil
 }

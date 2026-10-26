@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"mime"
-	"net"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -129,10 +128,7 @@ func (a *API) serveData(w http.ResponseWriter, r *http.Request, id string) bool 
 		if !a.decode(w, r, id, &input) {
 			return true
 		}
-		ip, _, splitErr := net.SplitHostPort(r.RemoteAddr)
-		if splitErr != nil {
-			ip = r.RemoteAddr
-		}
+		ip := a.clientIP(r)
 		if err = a.service.LimitAuth(ctx, "password-change:"+ip, "password-change:"+user.ID); err == nil {
 			err = a.service.ChangePassword(ctx, user.ID, header[1], input)
 		}
@@ -301,10 +297,7 @@ func (a *API) auth(w http.ResponseWriter, r *http.Request, id string, register b
 	ctx, cancel := context.WithTimeout(r.Context(), a.dbTimeout+10*time.Second)
 	defer cancel()
 	r = r.WithContext(ctx)
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		ip = r.RemoteAddr
-	}
+	ip := a.clientIP(r)
 	if err = a.service.LimitAuth(ctx, ip, email); err != nil {
 		a.serviceError(w, r, id, err)
 		return

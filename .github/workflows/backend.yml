@@ -44,6 +44,16 @@ jobs:
       - run: go test -race -count=1 -coverpkg=./internal/... -coverprofile=coverage.out ./...
       - run: go build ./cmd/...
       - run: docker build -t catatuang-backend:ci .
+      - name: Validate production proxy and Compose
+        env:
+          APP_IMAGE: catatuang-backend:ci
+          API_DOMAIN: api.example.invalid
+          ACME_EMAIL: ops@example.invalid
+          MIGRATION_DATABASE_URL: postgres://migrator:placeholder@db.example.invalid/app?sslmode=verify-full
+          RUNTIME_DATABASE_URL: postgres://runtime:placeholder@db.example.invalid/app?sslmode=verify-full
+        run: |
+          docker compose -f deploy/compose.production.yaml config --quiet
+          docker run --rm -e API_DOMAIN -e ACME_EMAIL -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.11.7-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
       - name: Container startup and readiness
         env:
           DATABASE_URL: postgres://catatuang:ci_only_password@127.0.0.1:5432/postgres?sslmode=disable
@@ -58,6 +68,16 @@ jobs:
           done
           docker exec catatuang-ci /app/healthcheck
           curl --fail --silent http://127.0.0.1:8080/healthz
+          docker exec catatuang-ci /app/ops-status
+      - name: PostgreSQL 18 backup and isolated restore smoke test
+        env:
+          DATABASE_URL: postgres://catatuang:ci_only_password@127.0.0.1:5432/postgres?sslmode=disable
+        run: |
+          CGO_ENABLED=0 go build -o bin/backup ./cmd/backup
+          CGO_ENABLED=0 go build -o bin/restore-check ./cmd/restore-check
+          mkdir -p "$RUNNER_TEMP/catatuang-backups"
+          docker run --rm --network host -e DATABASE_URL -e APP_ENV=test -v "$PWD/bin:/tools:ro" -v "$RUNNER_TEMP/catatuang-backups:/backups" postgres:18-bookworm /tools/backup -out /backups/ci.dump
+          docker run --rm --network host -e DATABASE_URL -e APP_ENV=test -v "$PWD/bin:/tools:ro" -v "$RUNNER_TEMP/catatuang-backups:/backups:ro" postgres:18-bookworm /tools/restore-check -in /backups/ci.dump
           curl --fail --silent http://127.0.0.1:8080/v1
           docker stop --time 15 catatuang-ci
           test "$(docker inspect -f '{{.State.ExitCode}}' catatuang-ci)" = 0

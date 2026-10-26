@@ -4,7 +4,6 @@ import (
 	"catatuang/backend/internal/service"
 	"context"
 	"errors"
-	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -18,10 +17,8 @@ func (a *API) accountRecovery(w http.ResponseWriter, r *http.Request, id string,
 	ctx, cancel := context.WithTimeout(r.Context(), a.dbTimeout+10*time.Second)
 	defer cancel()
 	r = r.WithContext(ctx)
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		ip = r.RemoteAddr
-	}
+	ip := a.clientIP(r)
+	var err error
 	scope := "account-recovery:" + ip
 	var action func() error
 	accepted := false

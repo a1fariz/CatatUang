@@ -39,7 +39,7 @@ flutter test
 - `web/`, `windows/`: Flutter-generated runners, not supported by current storage and notification dependencies
 - `pubspec.yaml`: Flutter dependencies
 
-Backend Go dan PostgreSQL tersedia di `../backend/`. Flutter menyediakan akun opsional serta [sinkronisasi transaksi manual](docs/transaction-sync.md) dengan persetujuan penautan. Pencatatan offline tetap tersedia; tagihan dan pembayaran masih lokal. Lihat [panduan akun](docs/account.md).
+Backend Go dan PostgreSQL tersedia di `../backend/`. Flutter menyediakan akun opsional serta sinkronisasi [transaksi](docs/transaction-sync.md) dan [tagihan/pembayaran](docs/bill-sync.md) manual dengan persetujuan penautan terpisah. [Backup terenkripsi](docs/external-backup.md) mendukung pemulihan seluruh data lokal. [Verifikasi email/reset password](docs/account-recovery.md) memerlukan konfigurasi SMTP server. Pencatatan offline tetap tersedia. Lihat [panduan akun](docs/account.md).
 
 Jika pub get pada Windows meminta symlink untuk runner desktop yang bukan target proyek, gunakan environment proses `FLUTTER_WINDOWS=false` dan `FLUTTER_LINUX=false`; lihat panduan akun.
 

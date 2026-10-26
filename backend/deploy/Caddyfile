@@ -1,0 +1,25 @@
+{
+	admin off
+	email {$ACME_EMAIL}
+}
+
+{$API_DOMAIN} {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	request_body {
+		max_size 512KiB
+	}
+	# API health details remain available only on the internal network.
+	@internal path /readyz /healthz
+	respond @internal 404
+	reverse_proxy api:8080 {
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 80s
+		}
+	}
+	# No access log: request URLs/headers could accidentally contain secrets.
+	# Use the API's request ID/status/duration JSON log for operational metrics.
+}

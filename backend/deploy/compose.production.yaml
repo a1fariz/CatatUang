@@ -1,0 +1,85 @@
+name: catatuang-production
+x-app: &app
+  image: ${APP_IMAGE:?Set immutable APP_IMAGE tag or digest}
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+  networks: [app]
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "5"}
+x-environment: &environment
+  APP_ENV: production
+  HTTP_ADDR: 0.0.0.0:8080
+  DB_TIMEOUT: ${DB_TIMEOUT:-5s}
+  DB_MAX_CONNECTIONS: ${DB_MAX_CONNECTIONS:-10}
+  SHUTDOWN_TIMEOUT: 20s
+  TRUSTED_PROXY_CIDRS: ${PROXY_IP:-172.30.251.2}/32
+  MAIL_OUTBOX_KEY: ${MAIL_OUTBOX_KEY:-}
+  SMTP_ADDR: ${SMTP_ADDR:-}
+  SMTP_FROM: ${SMTP_FROM:-}
+  SMTP_USERNAME: ${SMTP_USERNAME:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_ALLOW_INSECURE_LOCAL: "false"
+services:
+  migrate:
+    <<: *app
+    restart: "no"
+    entrypoint: ["/app/migrate"]
+    command: ["up"]
+    environment:
+      APP_ENV: production
+      DATABASE_URL: ${MIGRATION_DATABASE_URL:?Set dedicated migration owner URL with sslmode=verify-full}
+  api:
+    <<: *app
+    environment:
+      <<: *environment
+      DATABASE_URL: ${RUNTIME_DATABASE_URL:?Set runtime role URL with sslmode=verify-full}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "/app/healthcheck"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 90s
+  mail-worker:
+    <<: *app
+    profiles: [mail]
+    entrypoint: ["/app/mail-worker"]
+    environment:
+      <<: *environment
+      DATABASE_URL: ${MAIL_DATABASE_URL:-}
+    depends_on:
+      api: {condition: service_healthy}
+    stop_grace_period: 120s
+  proxy:
+    image: caddy:2.11.7-alpine
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?Set API hostname}
+      ACME_EMAIL: ${ACME_EMAIL:?Set certificate contact email}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      app:
+        ipv4_address: ${PROXY_IP:-172.30.251.2}
+    depends_on:
+      api: {condition: service_healthy}
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "5"}
+networks:
+  app:
+    ipam:
+      config:
+        - subnet: ${APP_SUBNET:-172.30.251.0/29}
+volumes:
+  caddy_data:
+  caddy_config:

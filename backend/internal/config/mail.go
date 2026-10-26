@@ -23,7 +23,7 @@ func parseMail(get func(string) string, environment string) (MailConfig, error) 
 	c.Username = get("SMTP_USERNAME")
 	c.Password = get("SMTP_PASSWORD")
 	insecure := get("SMTP_ALLOW_INSECURE_LOCAL")
-	if key == "" && c.Address == "" && c.From == "" && c.Username == "" && c.Password == "" && insecure == "" {
+	if key == "" && c.Address == "" && c.From == "" && c.Username == "" && c.Password == "" && (insecure == "" || insecure == "false") {
 		return c, nil
 	}
 	var err error

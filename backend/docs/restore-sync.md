@@ -29,7 +29,7 @@ Perintah menampilkan UUID identitas dataset tanpa URL database/kredensial. Ident
 
 Rotasi tidak mengubah transaksi, clock, log, receipt, pengguna, atau sesi. Rotasi tidak memperbaiki backup maupun menggabungkan data perangkat. Tidak perlu rotasi pada restart/deploy biasa. Rotasi tanpa restore tetap menghentikan semua klien tertaut, sehingga command ini hanya untuk operator pemulihan.
 
-Binary container tersedia di `/app/sync-dataset`; gunakan environment database yang benar untuk command administrasi. Role runtime memerlukan SELECT dan hak row locking pada tabel ini. Untuk pemisahan role, `SELECT` bersama `UPDATE (id)` memungkinkan `FOR SHARE` tanpa UPDATE pada kolom `dataset_id`; role migrasi/restore mengelola rotasi. Pemisahan role deployment belum diotomatisasi proyek.
+Binary container tersedia di `/app/sync-dataset`; gunakan environment database yang benar untuk command administrasi. [Grant runtime/mail](../deploy/roles.sql) menyediakan SELECT bersama UPDATE(changed_at) untuk FOR SHARE tanpa izin mengubah dataset_id atau primary key. Role migrasi/restore mengelola rotasi. Setelah restore sungguhan, cabut seluruh sesi/token akun dan buang mail outbox hasil restore sebelum membuka API/worker; lihat [runbook](operations.md). Rotasi dataset saja tidak mencabut token lama.
 
 ## Kompatibilitas
 

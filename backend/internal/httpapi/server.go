@@ -6,8 +6,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/netip"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"catatuang/backend/internal/service"
@@ -16,10 +19,37 @@ import (
 type Readiness func(context.Context) error
 
 type API struct {
-	logger    *slog.Logger
-	ready     Readiness
-	dbTimeout time.Duration
-	service   *service.Service
+	logger         *slog.Logger
+	ready          Readiness
+	dbTimeout      time.Duration
+	service        *service.Service
+	trustedProxies []netip.Prefix
+}
+
+func NewTrusted(logger *slog.Logger, ready Readiness, timeout time.Duration, s *service.Service, proxies []netip.Prefix) http.Handler {
+	a := New(logger, ready, timeout, s).(*API)
+	a.trustedProxies = append([]netip.Prefix(nil), proxies...)
+	return a
+}
+func (a *API) clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	peer, err := netip.ParseAddr(host)
+	if err != nil {
+		return host
+	}
+	peer = peer.Unmap()
+	for _, prefix := range a.trustedProxies {
+		if prefix.Contains(peer) && len(r.Header.Values("X-Forwarded-For")) == 1 {
+			value, err := netip.ParseAddr(strings.TrimSpace(r.Header.Get("X-Forwarded-For")))
+			if err == nil {
+				return value.Unmap().String()
+			}
+		}
+	}
+	return peer.String()
 }
 
 func New(logger *slog.Logger, ready Readiness, dbTimeout time.Duration, services ...*service.Service) http.Handler {

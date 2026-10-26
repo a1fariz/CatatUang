@@ -1,6 +1,6 @@
 # Catat Uang Backend
 
-Backend Go + PostgreSQL dengan registrasi/login, sesi yang dapat dicabut, CRUD transaksi/tagihan, pembayaran idempotent, serta [protokol sinkronisasi transaksi](docs/transaction-sync.md). Flutter menyediakan [sinkronisasi transaksi manual](../mobile/docs/transaction-sync.md) dan tetap dapat digunakan offline; tagihan/pembayaran masih lokal. Lihat `../mobile/docs/account.md`.
+Backend Go + PostgreSQL dengan registrasi/login, sesi yang dapat dicabut, CRUD transaksi/tagihan, pembayaran idempotent, serta sinkronisasi [transaksi](docs/transaction-sync.md) dan [tagihan/pembayaran](docs/bill-sync.md). [Email akun/reset password](docs/account-email.md) memakai token sekali pakai dan worker SMTP. Flutter tetap dapat digunakan offline. Lihat [runbook production dan backup](docs/operations.md).
 
 ## Prasyarat
 
