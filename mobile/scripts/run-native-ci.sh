@@ -24,5 +24,7 @@ curl --fail --silent http://127.0.0.1:18089/readyz
 cd "$project_root/mobile"
 timeout 8m flutter drive --no-pub --driver=test_driver/account_driver.dart --target=integration_test/account_backend_test.dart --use-application-binary="$apk_dir/account.apk" -d "$device" --dart-define=AUTH_TEST_API_URL=http://10.0.2.2:18089 --dart-define=INTEGRATION_TEST=true
 timeout 8m flutter drive --no-pub --driver=test_driver/account_driver.dart --target=integration_test/native_storage_test.dart --use-application-binary="$apk_dir/storage.apk" -d "$device" --dart-define=INTEGRATION_TEST=true
-adb -s "$device" shell pm path dev.catatuang.catat_uang.integration | grep '^package:'
+# flutter drive may uninstall its integration package after a successful run.
+# Package identity was checked in each prebuilt APK; the regular app must stay
+# absent both before and after execution.
 test -z "$(adb -s "$device" shell pm path dev.catatuang.catat_uang | tr -d '\r')"
