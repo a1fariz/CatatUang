@@ -69,6 +69,9 @@ jobs:
           docker exec catatuang-ci /app/healthcheck
           curl --fail --silent http://127.0.0.1:8080/healthz
           docker exec catatuang-ci /app/ops-status
+          curl --fail --silent http://127.0.0.1:8080/v1
+          docker stop --time 15 catatuang-ci
+          test "$(docker inspect -f '{{.State.ExitCode}}' catatuang-ci)" = 0
       - name: PostgreSQL 18 backup and isolated restore smoke test
         env:
           DATABASE_URL: postgres://catatuang:ci_only_password@127.0.0.1:5432/postgres?sslmode=disable
@@ -78,6 +81,3 @@ jobs:
           mkdir -p "$RUNNER_TEMP/catatuang-backups"
           docker run --rm --network host -e DATABASE_URL -e APP_ENV=test -v "$PWD/bin:/tools:ro" -v "$RUNNER_TEMP/catatuang-backups:/backups" postgres:18-bookworm /tools/backup -out /backups/ci.dump
           docker run --rm --network host -e DATABASE_URL -e APP_ENV=test -v "$PWD/bin:/tools:ro" -v "$RUNNER_TEMP/catatuang-backups:/backups:ro" postgres:18-bookworm /tools/restore-check -in /backups/ci.dump
-          curl --fail --silent http://127.0.0.1:8080/v1
-          docker stop --time 15 catatuang-ci
-          test "$(docker inspect -f '{{.State.ExitCode}}' catatuang-ci)" = 0

@@ -54,7 +54,9 @@ void main() {
     'version 1 external backups remain readable without opting into bill sync',
     () async {
       await a.saveBill(bill());
-      final snapshot = jsonDecode(jsonEncode(await a.backupSnapshot())) as Map<String,dynamic>;
+      final snapshot =
+          jsonDecode(jsonEncode(await a.backupSnapshot()))
+              as Map<String, dynamic>;
       snapshot['version'] = 1;
       (snapshot['tables'] as Map).removeWhere(
         (key, value) => (key as String).startsWith('bill_sync_'),
