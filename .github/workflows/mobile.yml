@@ -14,6 +14,11 @@ jobs:
         working-directory: mobile
     steps:
       - uses: actions/checkout@v4
+      - name: Make room on disposable build runner
+        run: |
+          # Unused by this Go/Flutter/Java workflow; affects only this CI VM.
+          sudo rm -rf /usr/share/dotnet /opt/ghc
+          df -h "$RUNNER_TEMP"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -26,10 +31,10 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
-            ~/.gradle/caches
+            ~/.gradle/caches/modules-2/files-2.1
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-catatuang-gradle-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/gradle/wrapper/gradle-wrapper.properties', 'mobile/pubspec.lock') }}
-          restore-keys: ${{ runner.os }}-catatuang-gradle-
+          key: ${{ runner.os }}-catatuang-gradle-dependencies-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/gradle/wrapper/gradle-wrapper.properties', 'mobile/pubspec.lock') }}
+          restore-keys: ${{ runner.os }}-catatuang-gradle-dependencies-
       - run: flutter pub get
       - run: dart format --output=none --set-exit-if-changed lib test integration_test test_driver
       - run: flutter analyze --no-pub
@@ -143,10 +148,10 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
-            ~/.gradle/caches
+            ~/.gradle/caches/modules-2/files-2.1
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-catatuang-gradle-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/gradle/wrapper/gradle-wrapper.properties', 'mobile/pubspec.lock') }}
-          restore-keys: ${{ runner.os }}-catatuang-gradle-
+          key: ${{ runner.os }}-catatuang-gradle-dependencies-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/gradle/wrapper/gradle-wrapper.properties', 'mobile/pubspec.lock') }}
+          restore-keys: ${{ runner.os }}-catatuang-gradle-dependencies-
       - run: go run ./cmd/migrate up && go build -o /tmp/catatuang-native-api ./cmd/api
         working-directory: backend
       - run: flutter pub get

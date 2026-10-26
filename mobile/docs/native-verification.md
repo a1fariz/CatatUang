@@ -6,6 +6,8 @@ Native CI menjalankan akun lewat API Go/PostgreSQL (secure storage/Keystore, rek
 
 Run pertama gagal sebelum tes karena partisi userdata default meminta 7,4 GB saat runner hanya tersisa 4,5 GB. Konfigurasi dibatasi data/RAM 2048M dan job membuang SDK .NET/GHC yang tidak dipakai pada runner sementara. Tidak ada AVD atau SDK workstation pengguna yang dihapus. Boot timeout 5 menit membatasi pemborosan jika emulator tidak dapat diluncurkan.
 
+Cache Gradle dibatasi ke modules-2/files-2.1 serta wrapper; cache transforms/build yang besar tidak ikut diarsipkan. Job build juga membersihkan SDK runner yang tidak digunakan agar pembuatan arsip tidak menghabiskan disk. Perubahan ini menanggapi peringatan No space left on device saat menyimpan cache, bukan kegagalan tes aplikasi.
+
 Tes manual tersisa saat perangkat khusus tersedia: ekspor lewat dialog SAF ke Documents/provider pilihan, salin file keluar data aplikasi, salah password/file rusak, restore di instalasi kosong, izin notifikasi ditolak/diterima, pengiriman alarm saat app ditutup/reboot/battery saver, dua perangkat offline bersamaan lalu konflik/payment retry, dan pemeriksaan nilai ledger bersama pemilik data. iOS memerlukan macOS/Xcode/perangkat/signing Apple. Jangan menggunakan uninstall sebagai langkah pemulihan data.
 
 Debug build lokal menggunakan paket reguler dan signer debug yang sudah ada. API_BASE_URL `http://10.0.2.2:8080` khusus server development; build ini bukan distribusi production. APK final di `.tools/catat-uang-final-debug.apk`, SHA-256 `786aa054fba733f4aa045baeae28d22f902062ca7964fa8e733aa91c9ddf3c09`, sertifikat SHA-256 `c0480972ebad36974db01b30175f2fd6ef0af162fe12431afee759539c24578b`. Semua 32 lib Dart ditemukan cocok di debug kernel. Artefak/key/database tidak masuk Git.
