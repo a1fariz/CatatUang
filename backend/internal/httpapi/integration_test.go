@@ -82,7 +82,7 @@ func (c *testClient) request(method, path, token string, body any, headers map[s
 	r := httptest.NewRequest(method, path, bytes.NewReader(data))
 	r.RemoteAddr = "127.0.0.1:12345"
 	r.Header.Set("Content-Type", "application/json")
-	if strings.HasPrefix(path, "/v1/sync/transactions") {
+	if strings.HasPrefix(path, "/v1/sync/transactions") || strings.HasPrefix(path, "/v1/sync/bills") {
 		var dataset string
 		if err := c.pool.QueryRow(context.Background(), `SELECT dataset_id::text FROM sync_dataset WHERE id=1`).Scan(&dataset); err != nil {
 			c.t.Fatal(err)

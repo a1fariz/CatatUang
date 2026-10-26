@@ -90,7 +90,18 @@ paths['/v1/auth/sessions/{id}']={parameters:[idParam],delete:{...auth,operationI
 schemas.PasswordChange=object({current_password:schemas.Credentials.properties.password,new_password:{...schemas.Credentials.properties.password,description:'Must differ from current_password. At least 15 Unicode characters and at most 128 UTF-8 bytes. Whitespace is preserved.'}});
 paths['/v1/auth/change-password']={post:{...auth,operationId:'changePassword',requestBody:body('PasswordChange'),description:'Verifies current password and current session, changes Argon2id hash, and atomically revokes every other session. The requesting token and its existing expiry are retained. Incorrect current password is 422 and does not revoke the current session. Password-change attempts have separate per-IP/per-account 20-attempt, 15-minute buckets. Never retry automatically after an uncertain response.',responses:{204:response(null,'Password changed; other sessions revoked'),...fail(400,401,409,413,415,422,429,500,503)}}};
 paths['/v1/sync/state']={get:{...auth,operationId:'getSyncState',description:'Dataset identity for the current server. Pin on first use only; a changed identity requires reconciliation, never silent cursor reset.',responses:{200:response('SyncState'),...fail(401,422,500,503)}},head:{...auth,operationId:'getSyncStateHead',responses:{200:response(null),...fail(401,422,500,503)}}};
-for(const route of ['/v1/sync/transactions','/v1/sync/transactions/{id}']) {
+schemas.BillSyncPayload=object({...schemas.BillInput.properties,status:schemas.Bill.properties.status,paid_at:schemas.Bill.properties.paid_at,payments:{type:'array',maxItems:2000,items:ref('Payment')}});
+schemas.BillSyncMutation=object({...schemas.SyncMutation.properties,payload:{oneOf:[ref('BillSyncPayload'),{type:'null'}]}},['operation_id','id']);
+schemas.BillSyncRecord=object({...schemas.Bill.properties,deleted:{type:'boolean'},payments:{type:'array',items:ref('Payment')}});
+schemas.BillSyncChange=object({sequence:integer(1,9007199254740991),record:ref('BillSyncRecord')});
+schemas.BillSyncPage=object({items:{type:'array',items:ref('BillSyncChange')},cursor:integer(0,9007199254740991),has_more:{type:'boolean'}});
+paths['/v1/sync/bills']={
+ get:{...auth,operationId:'pullBillChanges',parameters:syncPagination,responses:{200:response('BillSyncPage'),...fail(401,409,422,500,503)}},
+ head:{...auth,operationId:'pullBillChangesHead',parameters:syncPagination,responses:{200:response(null),...fail(401,409,422,500,503)}},
+ post:{...auth,operationId:'pushBillChange',requestBody:body('BillSyncMutation'),description:'Atomic bill aggregate mutation and immutable payment history with durable operation receipt. Existing payments cannot be removed or changed; each due occurrence and payment ID is unique. Full payload limited to 512 KiB and 2000 payments. Stale versions require explicit conflict resolution. Dataset replacement blocks replay as well as new mutations.',responses:{200:response('BillSyncRecord'),...fail(400,401,409,413,415,422,500,503)}}
+};
+paths['/v1/sync/bills/{id}']={parameters:[idParam],get:{...auth,operationId:'getBillSyncSnapshot',responses:{200:response('BillSyncRecord'),...fail(401,404,422,500,503)}},head:{...auth,operationId:'getBillSyncSnapshotHead',responses:{200:response(null),...fail(401,404,422,500,503)}}};
+for(const route of ['/v1/sync/transactions','/v1/sync/transactions/{id}','/v1/sync/bills','/v1/sync/bills/{id}']) {
  paths[route].parameters=[...(paths[route].parameters??[]),{name:'X-Sync-Dataset',in:'header',required:true,schema:uuid,description:'Pinned dataset_id from /v1/sync/state. Changed dataset returns 409 sync_reset_required, including receipt replays. Missing header returns 428 sync_dataset_required.'}];
  for(const method of ['get','head','post']) if(paths[route][method]) {
   Object.assign(paths[route][method].responses,fail(409,422));
@@ -107,6 +118,6 @@ for (const item of Object.values(paths)) {
 }
 const specification={openapi:'3.1.0',info:{title:'Catat Uang API',version:'0.3.0',description:'Authenticated transaction and bill API with transaction synchronization protocol. Flutter provides opt-in manual transaction synchronization. All known paths reject unsupported methods with JSON 405 and Allow. Unknown paths return JSON 404. HEAD responses have no body. Use HTTPS outside local development.'},servers:[{url:'http://127.0.0.1:8080'}],paths,components:{securitySchemes:{bearerAuth:{type:'http',scheme:'bearer',description:'Opaque 256-bit token from registration/login, valid for 24 hours. Store securely; do not put tokens in URLs.'}},schemas}};
 const destination=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../docs/openapi.json');
-specification.info.version='0.6.0';
+specification.info.version='0.7.0';
 fs.writeFileSync(destination,JSON.stringify(specification,null,2)+'\n');
 console.log('Generated docs/openapi.json');

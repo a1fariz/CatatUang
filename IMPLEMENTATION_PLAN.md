@@ -15,3 +15,7 @@ Baseline: commit `483ce28`, workflow Backend dan Mobile berhasil. Pengguna mengo
 Analisis Flutter bersih. Suite menghasilkan 114 tes lulus, satu tes backend dilewati tanpa server, dan satu regresi navigasi yang kemudian diperbaiki serta lulus pada pengujian terarah. Tes backup mencakup salah frasa, ciphertext rusak, pemulihan dua database file beserta pembayaran dan antrean inflight, serta penolakan target berisi. Build Android dan pengujian dialog native dicatat terpisah; tidak ada instalasi ke aplikasi pengguna.
 
 Build APK debug dengan plugin pemilih file berhasil. Hosting/email/perangkat bukan penghalang untuk pengujian lokal tahap berikutnya.
+
+## Tahap 2: protokol server
+
+Migration 6 dan endpoint agregat tagihan selesai. Semua tes backend dengan race detector dan PostgreSQL 18 lulus; OpenAPI 0.7.0 valid. Implementasi antrean/UI Flutter sedang dikerjakan sebagai progres terpisah sebelum tahap ini dinyatakan lengkap.

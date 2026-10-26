@@ -41,15 +41,17 @@ func (a *API) serveData(w http.ResponseWriter, r *http.Request, id string) bool 
 	sessions := path == "/v1/auth/sessions"
 	sessionEntity := len(parts) == 4 && parts[0] == "v1" && parts[1] == "auth" && parts[2] == "sessions" && service.ValidID(parts[3])
 	syncCollection := path == "/v1/sync/transactions"
+	billSyncCollection := path == "/v1/sync/bills"
+	billSyncEntity := len(parts) == 4 && parts[0] == "v1" && parts[1] == "sync" && parts[2] == "bills" && service.ValidID(parts[3])
 	syncState := path == "/v1/sync/state"
 	syncEntity := len(parts) == 4 && parts[0] == "v1" && parts[1] == "sync" && parts[2] == "transactions" && service.ValidID(parts[3])
-	if !collection && !entity && !me && !logout && !syncCollection && !syncEntity && !syncState && !passwordChange && !sessions && !sessionEntity {
+	if !collection && !entity && !me && !logout && !syncCollection && !syncEntity && !syncState && !passwordChange && !sessions && !sessionEntity && !billSyncCollection && !billSyncEntity {
 		return false
 	}
 	methods := "GET, HEAD"
 	if logout || passwordChange || billAction && parts[3] == "pay" {
 		methods = "POST"
-	} else if collection || syncCollection {
+	} else if collection || syncCollection || billSyncCollection {
 		methods = "GET, HEAD, POST"
 	} else if entity && !billAction {
 		methods = "GET, HEAD, PUT, DELETE"
@@ -128,6 +130,10 @@ func (a *API) serveData(w http.ResponseWriter, r *http.Request, id string) bool 
 		} else {
 			w.WriteHeader(204)
 		}
+		return true
+	}
+	if billSyncCollection || billSyncEntity {
+		a.billSync(w, r, id, user.ID, billSyncEntity)
 		return true
 	}
 	if syncCollection || syncEntity || syncState {
@@ -361,7 +367,11 @@ func (a *API) decode(w http.ResponseWriter, r *http.Request, id string, target a
 		a.fail(w, r, 415, "unsupported_media_type", "Gunakan Content-Type application/json.", id)
 		return false
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+	maxBytes := int64(16 << 10)
+	if r.URL.Path == "/v1/sync/bills" {
+		maxBytes = 512 << 10
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		var large *http.MaxBytesError
@@ -421,12 +431,19 @@ func exactFields(body []byte, target any) bool {
 	}
 	typ := reflect.TypeOf(target).Elem()
 	known := map[string]bool{}
-	for i := 0; i < typ.NumField(); i++ {
-		name := strings.Split(typ.Field(i).Tag.Get("json"), ",")[0]
-		if name != "" && name != "-" {
-			known[name] = true
+	var collect func(reflect.Type)
+	collect = func(t reflect.Type) {
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
+			name := strings.Split(field.Tag.Get("json"), ",")[0]
+			if field.Anonymous && name == "" && field.Type.Kind() == reflect.Struct {
+				collect(field.Type)
+			} else if name != "" && name != "-" {
+				known[name] = true
+			}
 		}
 	}
+	collect(typ)
 	for name := range fields {
 		if !known[name] {
 			return false
