@@ -11,7 +11,7 @@ const currency=string({enum:['IDR','USD','EUR','SGD']});
 const amount=integer(1,9007199254740991);
 const schemas={
  Error:object({error:object({code:string(),message:string(),request_id:string({pattern:'^[a-f0-9]{32}$'})})}),
- User:object({id:uuid,email:string({format:'email'})}),
+ User:object({id:uuid,email:string({format:'email'}),email_verified:{type:'boolean'}}),
  Credentials:object({email:string({format:'email',maxLength:254}),password:string({minLength:15,maxLength:128,description:'At least 15 Unicode characters; maximum 128 UTF-8 bytes. Spaces are preserved.'})}),
  Session:object({access_token:string({minLength:43,maxLength:43}),token_type:string({const:'Bearer'}),expires_at:timestamp,user:ref('User')}),
  TransactionInput:object({type:string({enum:['income','expense']}),amount_minor:amount,currency_code:currency,category:string({enum:['Gaji','Bonus','Makan','Transportasi','Belanja','Tagihan','Lainnya'],description:'income: Gaji, Bonus, Lainnya; expense: Makan, Transportasi, Belanja, Tagihan, Lainnya.'}),occurred_on:string({format:'date',description:'Calendar date from 2000-01-01 through 2100-12-31.'}),note:string({maxLength:200})},['type','amount_minor','currency_code','category','occurred_on']),
@@ -109,6 +109,14 @@ for(const route of ['/v1/sync/transactions','/v1/sync/transactions/{id}','/v1/sy
  }
 }
 paths['/v1/sync/transactions'].post.description+=' For sync_reset_required, stop and preserve local data/outbox; do not treat dataset replacement as a per-record conflict.';
+schemas.AccountEmail=object({email:string({format:'email',maxLength:254})});
+schemas.AccountCode=object({token:string({pattern:'^[A-Za-z0-9_-]{43}$'})});
+schemas.ResetConfirmation=object({...schemas.AccountCode.properties,new_password:schemas.Credentials.properties.password});
+schemas.MailAccepted=object({message:string()});
+for(const purpose of ['password-reset','email-verification']) {
+ paths[`/v1/auth/${purpose}/request`]={post:{...(purpose==='email-verification'?auth:{}),operationId:purpose==='password-reset'?'requestPasswordReset':'requestEmailVerification',...(purpose==='password-reset'?{requestBody:body('AccountEmail')}:{}),description:'Queues encrypted email to the stored account address. Generic 202 does not disclose account existence. Explicit mail configuration required, otherwise 503 for all addresses. Tokens are hashed, single-use and superseded by a new request. Verification expires in 24h; reset expires in 30m. Per-IP/per-account rate limits apply.',responses:{202:response('MailAccepted'),...fail(400,401,413,415,422,429,500,503)}}};
+ paths[`/v1/auth/${purpose}/confirm`]={post:{operationId:purpose==='password-reset'?'confirmPasswordReset':'confirmEmailVerification',requestBody:body(purpose==='password-reset'?'ResetConfirmation':'AccountCode'),description:'Consumes a purpose-bound code atomically. POST body only: never put codes in URLs or logs. Expired, superseded, wrong-purpose and used codes return 422. Password reset revokes all sessions; no session is issued. Do not automatically retry an uncertain confirmation.',responses:{204:response(null),...fail(400,413,415,422,429,500,503)}}};
+}
 for (const item of Object.values(paths)) {
  for (const method of ['get','head','post','put','delete']) {
   const operation=item[method]; if(!operation) continue;
@@ -118,6 +126,6 @@ for (const item of Object.values(paths)) {
 }
 const specification={openapi:'3.1.0',info:{title:'Catat Uang API',version:'0.3.0',description:'Authenticated transaction and bill API with transaction synchronization protocol. Flutter provides opt-in manual transaction synchronization. All known paths reject unsupported methods with JSON 405 and Allow. Unknown paths return JSON 404. HEAD responses have no body. Use HTTPS outside local development.'},servers:[{url:'http://127.0.0.1:8080'}],paths,components:{securitySchemes:{bearerAuth:{type:'http',scheme:'bearer',description:'Opaque 256-bit token from registration/login, valid for 24 hours. Store securely; do not put tokens in URLs.'}},schemas}};
 const destination=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../docs/openapi.json');
-specification.info.version='0.7.0';
+specification.info.version='0.8.0';
 fs.writeFileSync(destination,JSON.stringify(specification,null,2)+'\n');
 console.log('Generated docs/openapi.json');

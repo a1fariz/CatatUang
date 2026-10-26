@@ -22,6 +22,7 @@ var (
 type Service struct {
 	Pool      *pgxpool.Pool
 	hashSlots chan struct{}
+	mailKey   []byte
 }
 
 func New(pool *pgxpool.Pool) *Service { return &Service{Pool: pool, hashSlots: make(chan struct{}, 2)} }

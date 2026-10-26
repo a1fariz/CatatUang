@@ -24,8 +24,9 @@ type Credentials struct {
 	Password string `json:"password"`
 }
 type User struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
 }
 type Session struct {
 	AccessToken string    `json:"access_token"`
@@ -139,7 +140,7 @@ func (s *Service) Authenticate(ctx context.Context, input Credentials, register 
 		// Serialize session issuance with password changes. A verification of an
 		// old hash must not create a fresh session after that hash was replaced.
 		var current string
-		if err = tx.QueryRow(ctx, `SELECT password_hash FROM users WHERE id=$1 FOR UPDATE`, user.ID).Scan(&current); err != nil {
+		if err = tx.QueryRow(ctx, `SELECT password_hash,email_verified FROM users WHERE id=$1 FOR UPDATE`, user.ID).Scan(&current, &user.EmailVerified); err != nil {
 			return Session{}, dbError(err)
 		}
 		if current != hash {
@@ -167,7 +168,7 @@ func (s *Service) CurrentUser(ctx context.Context, token string) (User, error) {
 		return User{}, ErrUnauthorized
 	}
 	var u User
-	err := s.Pool.QueryRow(ctx, `SELECT u.id::text,u.email FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()`, tokenHash(token)).Scan(&u.ID, &u.Email)
+	err := s.Pool.QueryRow(ctx, `SELECT u.id::text,u.email,u.email_verified FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()`, tokenHash(token)).Scan(&u.ID, &u.Email, &u.EmailVerified)
 	if err == pgx.ErrNoRows {
 		return u, ErrUnauthorized
 	}
@@ -197,7 +198,7 @@ func (s *Service) Cleanup(ctx context.Context) error {
 		return err
 	}
 	defer tx.Rollback(context.Background())
-	for _, table := range []string{"sessions", "auth_rate_limits"} {
+	for _, table := range []string{"sessions", "auth_rate_limits", "account_tokens", "mail_outbox"} {
 		if _, err = tx.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE expires_at <= now()", table)); err != nil {
 			return err
 		}

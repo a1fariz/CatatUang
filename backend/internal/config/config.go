@@ -16,6 +16,7 @@ type Config struct {
 	MaxConnections  int32
 	DBTimeout       time.Duration
 	ShutdownTimeout time.Duration
+	Mail            MailConfig
 }
 
 func Load() (Config, error) { return Parse(os.Getenv) }
@@ -64,6 +65,10 @@ func Parse(get func(string) string) (Config, error) {
 			}
 			*item.target = d
 		}
+	}
+	c.Mail, err = parseMail(get, c.Environment)
+	if err != nil {
+		return c, err
 	}
 	return c, nil
 }

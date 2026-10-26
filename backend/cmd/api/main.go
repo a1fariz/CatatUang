@@ -48,7 +48,13 @@ func run(logger *slog.Logger) error {
 		}
 		return database.CheckSchema(ctx, pool)
 	}
-	server := &http.Server{Addr: c.Address, Handler: httpapi.New(logger, ready, c.DBTimeout, service.New(pool)), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: c.DBTimeout + 15*time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
+	appService := service.New(pool)
+	if len(c.Mail.Key) > 0 {
+		if err = appService.ConfigureMail(c.Mail.Key); err != nil {
+			return errors.New("mail configuration invalid")
+		}
+	}
+	server := &http.Server{Addr: c.Address, Handler: httpapi.New(logger, ready, c.DBTimeout, appService), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: c.DBTimeout + 15*time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
 	result := make(chan error, 1)
 	go func() { result <- server.ListenAndServe() }()
 	logger.Info("API starting", "address", c.Address, "environment", c.Environment)

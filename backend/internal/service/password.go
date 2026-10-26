@@ -65,5 +65,11 @@ func (s *Service) ChangePassword(ctx context.Context, user, token string, in Pas
 	if _, err = tx.Exec(ctx, `DELETE FROM sessions WHERE user_id=$1 AND token_hash<>$2`, user, tokenHash(token)); err != nil {
 		return dbError(err)
 	}
+	if _, err = tx.Exec(ctx, `DELETE FROM account_tokens WHERE user_id=$1 AND kind='reset'`, user); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, `DELETE FROM mail_outbox WHERE user_id=$1 AND kind='reset'`, user); err != nil {
+		return err
+	}
 	return dbError(tx.Commit(ctx))
 }

@@ -128,7 +128,7 @@ func TestLoginCannotIssueSessionFromStalePasswordVerification(t *testing.T) {
 	}()
 	blocked := false
 	for ctx.Err() == nil {
-		if err = c.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE 'SELECT password_hash FROM users WHERE id=%')`).Scan(&blocked); err != nil {
+		if err = c.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock' AND query LIKE 'SELECT password_hash,email_verified FROM users WHERE id=%')`).Scan(&blocked); err != nil {
 			t.Fatal(err)
 		}
 		if blocked {

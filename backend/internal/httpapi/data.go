@@ -21,6 +21,12 @@ import (
 
 func (a *API) serveData(w http.ResponseWriter, r *http.Request, id string) bool {
 	path := r.URL.Path
+	if path == "/v1/auth/password-reset/request" || path == "/v1/auth/password-reset/confirm" || path == "/v1/auth/email-verification/confirm" {
+		if a.allow(w, r, id, "POST") {
+			a.accountRecovery(w, r, id, false, "")
+		}
+		return true
+	}
 	if path == "/v1/auth/register" || path == "/v1/auth/login" {
 		if !a.allow(w, r, id, "POST") {
 			return true
@@ -38,6 +44,7 @@ func (a *API) serveData(w http.ResponseWriter, r *http.Request, id string) bool 
 	me := path == "/v1/me"
 	logout := path == "/v1/auth/logout" || path == "/v1/auth/logout-all"
 	passwordChange := path == "/v1/auth/change-password"
+	verifyRequest := path == "/v1/auth/email-verification/request"
 	sessions := path == "/v1/auth/sessions"
 	sessionEntity := len(parts) == 4 && parts[0] == "v1" && parts[1] == "auth" && parts[2] == "sessions" && service.ValidID(parts[3])
 	syncCollection := path == "/v1/sync/transactions"
@@ -45,11 +52,11 @@ func (a *API) serveData(w http.ResponseWriter, r *http.Request, id string) bool 
 	billSyncEntity := len(parts) == 4 && parts[0] == "v1" && parts[1] == "sync" && parts[2] == "bills" && service.ValidID(parts[3])
 	syncState := path == "/v1/sync/state"
 	syncEntity := len(parts) == 4 && parts[0] == "v1" && parts[1] == "sync" && parts[2] == "transactions" && service.ValidID(parts[3])
-	if !collection && !entity && !me && !logout && !syncCollection && !syncEntity && !syncState && !passwordChange && !sessions && !sessionEntity && !billSyncCollection && !billSyncEntity {
+	if !collection && !entity && !me && !logout && !syncCollection && !syncEntity && !syncState && !passwordChange && !sessions && !sessionEntity && !billSyncCollection && !billSyncEntity && !verifyRequest {
 		return false
 	}
 	methods := "GET, HEAD"
-	if logout || passwordChange || billAction && parts[3] == "pay" {
+	if logout || passwordChange || verifyRequest || billAction && parts[3] == "pay" {
 		methods = "POST"
 	} else if collection || syncCollection || billSyncCollection {
 		methods = "GET, HEAD, POST"
@@ -80,6 +87,10 @@ func (a *API) serveData(w http.ResponseWriter, r *http.Request, id string) bool 
 	}
 	if me {
 		a.json(w, r, 200, user)
+		return true
+	}
+	if verifyRequest {
+		a.accountRecovery(w, r, id, true, header[1])
 		return true
 	}
 	if sessions || sessionEntity {

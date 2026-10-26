@@ -6,6 +6,7 @@ COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api \
  && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/migrate ./cmd/migrate \
  && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/cleanup ./cmd/cleanup \
+ && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/mail-worker ./cmd/mail-worker \
  && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/sync-dataset ./cmd/sync-dataset \
  && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/healthcheck ./cmd/healthcheck
 
