@@ -9,6 +9,7 @@ Aplikasi pencatat keuangan pribadi yang tetap berfungsi offline.
 - [Pemulihan transaksi](mobile/docs/recovery.md): peninjauan data perangkat/akun setelah dataset berubah dan cadangan transaksi lokal sebelum penerapan.
 - [Ganti kata sandi](mobile/docs/password-change.md): verifikasi sandi lama dan pencabutan sesi lain, tanpa menghapus catatan lokal.
 - [Sesi masuk](mobile/docs/sessions.md): daftar login aktif dan pencabutan satu sesi lain dengan konfirmasi.
+- [Laporan verifikasi](VERIFICATION.md): progres commit, hasil pemeriksaan, artefak debug, dan prasyarat sebelum production.
 
 Flutter menyediakan akun opsional serta [sinkronisasi transaksi](mobile/docs/transaction-sync.md) dan [tagihan/pembayaran](mobile/docs/bill-sync.md) manual dengan persetujuan penautan terpisah, antrean SQLite persisten, retry idempotent, dan peninjauan konflik/dataset. [Backup file terenkripsi](mobile/docs/external-backup.md) menyimpan seluruh data lokal tanpa token akun. Login/logout tidak mengunggah atau memindahkan ledger lokal.
 

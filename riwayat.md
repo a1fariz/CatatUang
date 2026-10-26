@@ -2,6 +2,16 @@
 
 ## 2026-10-26
 
+### Penuntasan pondasi backend dan mobile
+- Progres di-add, commit, dan push terpisah: backup terenkripsi, server dan UI sinkronisasi tagihan/pembayaran, email verification/password reset, konfigurasi operasional, hardening snapshot/kalender, serta native CI. Daftar commit dan bukti ada di [VERIFICATION.md](VERIFICATION.md).
+- Backup file memakai AES-256-GCM/PBKDF2, mengecualikan token akun, mempertahankan antrean inflight, dan restore atomik hanya ke ledger kosong. Format v2 mendukung skema tagihan baru dan tetap membaca format v1.
+- PostgreSQL sampai migration 8 dan SQLite sampai versi 10. Snapshot tagihan beserta history dipublikasikan pada commit; ID operasi/payment stabil, konflik dan perubahan dataset tidak ditimpa diam-diam. Zona jatuh tempo dipertahankan saat berpindah perangkat/zona dan melewati DST.
+- Verifikasi email/reset memakai kode hashed sekali pakai, expiry, rate limit, encrypted mail outbox, lease/retry dan STARTTLS; reset mencabut semua sesi. Pengiriman diuji dengan sink SMTP loopback, tanpa provider email pengguna.
+- Siapkan Caddy/Compose production, grant runtime/mail terbatas, backup custom+checksum dan restore ke clone terisolasi, ops-status, loadcheck, dan runbook. Backend CI lulus termasuk container dan restore PostgreSQL 18. Load lokal final 100 request/concurrency 4 tanpa gagal; bukan SLA production.
+- Suite Flutter, analyzer, dua ledger SQLite terhadap API nyata, serta tes form/kalender terkait lulus. APK debug final memakai signer yang sama dan cocok dengan 32 source Dart. Signing release kini wajib dikonfigurasi terpisah.
+- Native CI memakai paket `.integration` dan emulator disposable. Dua run awal gagal sebelum tes karena userdata default membutuhkan ruang lebih besar daripada runner; partisi/RAM dibatasi dan SDK runner yang tidak dipakai dibersihkan. Emulator kemudian boot dan kedua suite native lulus; job masih gagal pada pemeriksaan paket yang sudah dibersihkan Flutter. Pemeriksaan penutup dikoreksi; workflow final 8c2f5c4 berhasil untuk android, transaction-sync, dan native-android. Bukti run dicatat di laporan.
+- Pengguna memilih konfigurasi/pengujian lokal karena belum ada hosting/domain/provider email/perangkat tes khusus. Publikasi production, keystore store, pengiriman alarm nyata/reboot/SAF, dan iOS tetap memerlukan sarana tersebut. Tidak ada instalasi ke aplikasi reguler atau restore ke database keuangan pengguna pada pengerjaan ini.
+
 ### Daftar dan pencabutan sesi masuk
 - Workflow Backend dan Mobile commit `63c6baf` berhasil di GitHub.
 - Tambah migrasi `000005_session_ids.sql` untuk ID publik sesi yang terpisah dari kredensial. Token, hash, created_at, dan expiry sesi lama dipertahankan; migrasi lama tidak diubah.
