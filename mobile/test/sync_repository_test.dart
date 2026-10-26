@@ -9,6 +9,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'auth_fakes.dart';
 import 'sync_fakes.dart';
+import 'schema_fixtures.dart';
 
 void main() {
   late TransactionRepository repo;
@@ -43,6 +44,7 @@ void main() {
         final operation = (await before.nextSyncOperation(binding.generation))!;
         await before.close();
         final raw = await databaseFactoryFfiNoIsolate.openDatabase(file);
+        await removeVersion10Schema(raw);
         await raw.execute('ALTER TABLE sync_binding DROP COLUMN dataset_id');
         await raw.execute('DROP TABLE sync_recovery_backups');
         await raw.setVersion(7);
@@ -400,6 +402,7 @@ void main() {
         await before.saveSettings(const AppSettings(darkMode: true));
         await before.close();
         final raw = await databaseFactoryFfiNoIsolate.openDatabase(file);
+        await removeVersion10Schema(raw);
         for (final table in [
           'sync_recovery_backups',
           'sync_outbox',

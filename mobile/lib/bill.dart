@@ -13,6 +13,7 @@ class Bill {
     required this.reminderMinutes,
     required this.status,
     this.paidAt,
+    this.timezone,
   });
 
   final int? id;
@@ -24,6 +25,7 @@ class Bill {
   final int? reminderMinutes;
   final BillStatus status;
   final DateTime? paidAt;
+  final String? timezone;
 
   Bill copyWith({DateTime? dueAt, bool clearReminder = false}) => Bill(
     id: id,
@@ -35,6 +37,7 @@ class Bill {
     reminderMinutes: clearReminder ? null : reminderMinutes,
     status: status,
     paidAt: paidAt,
+    timezone: timezone,
   );
 
   Map<String, Object?> toMap() => {
@@ -47,6 +50,7 @@ class Bill {
     'reminder_minutes': reminderMinutes,
     'status': status.name,
     'paid_at': paidAt?.toIso8601String(),
+    'timezone': timezone,
   };
 
   factory Bill.fromMap(Map<String, Object?> map) {
@@ -63,6 +67,7 @@ class Bill {
       paidAt: map['paid_at'] == null
           ? null
           : DateTime.parse(map['paid_at']! as String),
+      timezone: map['timezone'] as String?,
     );
   }
 }

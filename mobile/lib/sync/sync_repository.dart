@@ -79,6 +79,12 @@ extension TransactionSyncRepository on TransactionRepository {
     if (!validSyncId(userId)) throw ArgumentError('Invalid account');
     await (await _db).transaction((txn) async {
       final old = await _binding(txn);
+      final billOwner = await _billBinding(txn);
+      if (billOwner != null &&
+          (billOwner.userId != userId ||
+              billOwner.server != server.toString())) {
+        throw const SyncFailure('Tagihan terhubung ke akun atau server lain.');
+      }
       if (old != null) {
         if (old.server != server.toString() || old.userId != userId) {
           throw const SyncFailure(

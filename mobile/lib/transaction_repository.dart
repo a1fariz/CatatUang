@@ -9,10 +9,12 @@ import 'transaction.dart';
 import 'sync/sync_models.dart';
 import 'sync/sync_recovery.dart';
 import 'backup/backup_codec.dart';
+import 'sync/bill_sync_models.dart';
 
 part 'sync/sync_repository.dart';
 part 'sync/recovery_repository.dart';
 part 'backup/backup_repository.dart';
+part 'sync/bill_sync_repository.dart';
 
 class TransactionRepository {
   TransactionRepository({DatabaseFactory? factory, String? databasePath})
@@ -35,7 +37,8 @@ class TransactionRepository {
         recurrence_day INTEGER NOT NULL DEFAULT 1 CHECK (recurrence_day BETWEEN 1 AND 31),
         reminder_minutes INTEGER,
         status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paid', 'cancelled')),
-        paid_at TEXT
+        paid_at TEXT,
+        timezone TEXT
       )
     ''');
     await db.execute('''
@@ -77,7 +80,7 @@ class TransactionRepository {
         _databasePath ??
             path.join(await _factory.getDatabasesPath(), 'catat_uang.db'),
         options: OpenDatabaseOptions(
-          version: 9,
+          version: 10,
           onCreate: (db, version) async {
             await db.execute('''
             CREATE TABLE transactions (
@@ -93,8 +96,15 @@ class TransactionRepository {
             await _createSettingsTable(db);
             await _createSyncTables(db);
             await _createRecoveryTable(db);
+            await _createBillSyncTables(db);
           },
           onUpgrade: (db, oldVersion, newVersion) async {
+            if (oldVersion < 10) {
+              if (oldVersion >= 3) {
+                await db.execute('ALTER TABLE bills ADD COLUMN timezone TEXT');
+              }
+              await _createBillSyncTables(db);
+            }
             if (oldVersion < 9) await _createRecoveryTable(db);
             if (oldVersion < 7) await _createSyncTables(db);
             if (oldVersion == 7) {
@@ -148,7 +158,10 @@ class TransactionRepository {
   Future<void> saveSettings(AppSettings settings) async {
     await (await _db).transaction((txn) async {
       final binding = await _binding(txn);
-      if (binding != null && binding.currency != settings.currencyCode) {
+      final billBinding = await _billBinding(txn);
+      if (binding != null && binding.currency != settings.currencyCode ||
+          billBinding != null &&
+              billBinding.currency != settings.currencyCode) {
         throw StateError('Currency is bound to a sync ledger');
       }
       await txn.insert(
@@ -162,6 +175,15 @@ class TransactionRepository {
   Future<void> clearAllData() async {
     final db = await _db;
     await db.transaction((txn) async {
+      for (final table in [
+        'bill_sync_outbox',
+        'bill_sync_maps',
+        'bill_sync_payment_ids',
+        'bill_sync_binding',
+        'bill_sync_recovery_backups',
+      ]) {
+        await txn.delete(table);
+      }
       await txn.delete('sync_outbox');
       await txn.delete('sync_recovery_backups');
       await txn.delete('sync_transactions');
@@ -185,13 +207,21 @@ class TransactionRepository {
 
   Future<int> saveBill(Bill bill) async {
     final db = await _db;
-    if (bill.id == null) return db.insert('bills', bill.toMap());
-    return db.update(
-      'bills',
-      bill.toMap()..remove('id'),
-      where: 'id = ?',
-      whereArgs: [bill.id],
-    );
+    return db.transaction((txn) async {
+      if (bill.id == null) {
+        final id = await txn.insert('bills', bill.toMap());
+        await _queueBill(txn, id);
+        return id;
+      }
+      final count = await txn.update(
+        'bills',
+        bill.toMap()..remove('id'),
+        where: 'id = ?',
+        whereArgs: [bill.id],
+      );
+      if (count > 0) await _queueBill(txn, bill.id!);
+      return count;
+    });
   }
 
   Future<void> payBill(Bill bill, DateTime paidAt) async {
@@ -208,11 +238,15 @@ class TransactionRepository {
                 'paid_at': paidAt.toIso8601String(),
               }
             : {
-                'due_at': nextDueDate(
-                  bill.dueAt,
-                  bill.recurrence,
-                  recurrenceDay: bill.recurrenceDay,
-                ).toIso8601String(),
+                'due_at':
+                    (bill.timezone != null
+                            ? nextZonedBillDue(bill)
+                            : nextDueDate(
+                                bill.dueAt,
+                                bill.recurrence,
+                                recurrenceDay: bill.recurrenceDay,
+                              ))
+                        .toIso8601String(),
                 'paid_at': null,
               },
         where: "id = ? AND status = 'active' AND due_at = ?",
@@ -225,6 +259,7 @@ class TransactionRepository {
         'amount': bill.amount,
         'paid_at': paidAt.toIso8601String(),
       });
+      await _queueBill(txn, bill.id!);
     });
   }
 
@@ -232,7 +267,9 @@ class TransactionRepository {
     final db = await _db;
     return db.transaction((txn) async {
       await txn.delete('bill_payments', where: 'bill_id = ?', whereArgs: [id]);
-      return txn.delete('bills', where: 'id = ?', whereArgs: [id]);
+      final count = await txn.delete('bills', where: 'id = ?', whereArgs: [id]);
+      if (count > 0) await _queueBill(txn, id, deleted: true);
+      return count;
     });
   }
 

@@ -11,6 +11,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'auth_fakes.dart';
 import 'sync_fakes.dart';
+import 'schema_fixtures.dart';
 
 void main() {
   setUpAll(sqfliteFfiInit);
@@ -301,6 +302,7 @@ void main() {
       final operation = (await before.nextSyncOperation(ledger.generation))!;
       await before.close();
       final raw = await databaseFactoryFfiNoIsolate.openDatabase(file);
+      await removeVersion10Schema(raw);
       await raw.execute('DROP TABLE sync_recovery_backups');
       await raw.setVersion(8);
       await raw.close();

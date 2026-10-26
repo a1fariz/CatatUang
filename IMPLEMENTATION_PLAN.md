@@ -19,3 +19,5 @@ Build APK debug dengan plugin pemilih file berhasil. Hosting/email/perangkat buk
 ## Tahap 2: protokol server
 
 Migration 6 dan endpoint agregat tagihan selesai. Semua tes backend dengan race detector dan PostgreSQL 18 lulus; OpenAPI 0.7.0 valid. Implementasi antrean/UI Flutter sedang dikerjakan sebagai progres terpisah sebelum tahap ini dinyatakan lengkap.
+
+Flutter tahap 2 selesai: antrean/UUID/payment history, persetujuan terpisah, konflik, recovery dataset dengan cadangan, rekonsiliasi pengingat, zona waktu asal, backup v2 kompatibel v1. Enam tes baru dan dua integrasi Go nyata lulus; analyzer bersih dan APK berhasil. Rincian hasil serta keterbatasan di mobile/docs/bill-sync.md. Tahap 3 sedang dikerjakan dengan SMTP lokal sesuai pilihan pengguna.

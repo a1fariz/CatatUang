@@ -9,6 +9,11 @@ const _backupTables = [
   'sync_transactions',
   'sync_outbox',
   'sync_recovery_backups',
+  'bill_sync_binding',
+  'bill_sync_maps',
+  'bill_sync_outbox',
+  'bill_sync_payment_ids',
+  'bill_sync_recovery_backups',
 ];
 
 extension ExternalBackupRepository on TransactionRepository {
@@ -20,7 +25,7 @@ extension ExternalBackupRepository on TransactionRepository {
         }
         return {
           'format': 'catat-uang-local-data',
-          'version': 1,
+          'version': 2,
           'created_at': DateTime.now().toUtc().toIso8601String(),
           'tables': tables,
         };
@@ -28,11 +33,21 @@ extension ExternalBackupRepository on TransactionRepository {
 
   Future<void> restoreExternalBackup(Map<String, dynamic> backup) async {
     if (backup['format'] != 'catat-uang-local-data' ||
-        backup['version'] != 1 ||
+        !const [1, 2].contains(backup['version']) ||
         backup['tables'] is! Map) {
       throw const BackupFailure('Isi atau versi backup tidak didukung.');
     }
     final tables = Map<String, dynamic>.from(backup['tables'] as Map);
+    if (backup['version'] == 1) {
+      for (final table in _backupTables.where(
+        (name) => name.startsWith('bill_sync_'),
+      )) {
+        if (tables.containsKey(table)) {
+          throw const BackupFailure('Versi backup tidak konsisten.');
+        }
+        tables[table] = <dynamic>[];
+      }
+    }
     if (tables.length != _backupTables.length ||
         tables.keys.any((key) => !_backupTables.contains(key))) {
       throw const BackupFailure('Daftar tabel backup tidak valid.');
@@ -70,6 +85,66 @@ extension ExternalBackupRepository on TransactionRepository {
               )) {
             throw const BackupFailure('Kolom atau nilai backup tidak valid.');
           }
+        }
+      }
+      if ((tables['bill_sync_binding'] as List).length > 1) {
+        throw const BackupFailure('Penautan tagihan tidak valid.');
+      }
+      final billRemoteIds = (tables['bill_sync_maps'] as List)
+          .map((row) => row['remote_id'])
+          .toSet();
+      for (final row in tables['bill_sync_binding'] as List) {
+        final binding = SyncBinding(Map<String, Object?>.from(row as Map));
+        final uri = Uri.tryParse(binding.server);
+        if (!validSyncId(binding.userId) ||
+            binding.datasetId != null && !validSyncId(binding.datasetId) ||
+            binding.cursor < 0 ||
+            uri == null ||
+            !uri.hasAuthority ||
+            !const ['http', 'https'].contains(uri.scheme) ||
+            uri.userInfo.isNotEmpty ||
+            uri.hasQuery ||
+            uri.hasFragment) {
+          throw const BackupFailure('Penautan tagihan backup tidak valid.');
+        }
+        billZone(row['timezone'] as String);
+        final owner = (tables['sync_binding'] as List).firstOrNull;
+        if (owner != null &&
+            (owner['server'] != binding.server ||
+                owner['user_id'] != binding.userId ||
+                owner['currency'] != binding.currency)) {
+          throw const BackupFailure('Pemilik penautan berbeda.');
+        }
+      }
+      for (final row in tables['bill_sync_maps'] as List) {
+        if (!validSyncId(row['remote_id']) ||
+            row['remote_version'] is! int ||
+            row['remote_version'] < 0) {
+          throw const BackupFailure('Pemetaan tagihan tidak valid.');
+        }
+        if (row['conflict_json'] != null) {
+          BillSyncRecord.fromJson(
+            jsonDecode(row['conflict_json'] as String) as Map<String, dynamic>,
+          );
+        }
+      }
+      for (final row in tables['bill_sync_outbox'] as List) {
+        if (!validSyncId(row['operation_id']) ||
+            !billRemoteIds.contains(row['remote_id']) ||
+            row['base_version'] is! int ||
+            row['base_version'] < 0 ||
+            row['payload'] != null &&
+                jsonDecode(row['payload'] as String) is! Map) {
+          throw const BackupFailure('Antrean tagihan tidak valid.');
+        }
+      }
+      if ((tables['bill_sync_binding'] as List).isEmpty &&
+          billRemoteIds.isNotEmpty) {
+        throw const BackupFailure('Pemetaan tagihan tanpa pemilik.');
+      }
+      for (final row in tables['bill_sync_payment_ids'] as List) {
+        if (!validSyncId(row['remote_id'])) {
+          throw const BackupFailure('ID pembayaran tidak valid.');
         }
       }
       for (final row in tables['sync_transactions'] as List) {
@@ -185,7 +260,7 @@ extension ExternalBackupRepository on TransactionRepository {
       for (final table in _backupTables) {
         for (final raw in tables[table] as List) {
           final row = Map<String, Object?>.from(raw as Map);
-          if (table == 'sync_binding') {
+          if (table == 'sync_binding' || table == 'bill_sync_binding') {
             row['generation'] = syncId();
           }
           await txn.insert(table, row);

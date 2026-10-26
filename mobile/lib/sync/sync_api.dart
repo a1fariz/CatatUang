@@ -34,7 +34,11 @@ class HttpTransactionSyncGateway implements TransactionSyncGateway {
 
   @override
   Future<String> datasetId(String token) async {
-    final value = (await _request('GET', 'v1/sync/state', token))['dataset_id'];
+    final value = (await requestJson(
+      'GET',
+      'v1/sync/state',
+      token,
+    ))['dataset_id'];
     if (!validSyncId(value)) {
       throw const SyncFailure('Identitas dataset server tidak valid.');
     }
@@ -44,7 +48,7 @@ class HttpTransactionSyncGateway implements TransactionSyncGateway {
   @override
   Future<SyncPage> pull(String token, int after, {String? dataset}) async =>
       SyncPage.fromJson(
-        await _request(
+        await requestJson(
           'GET',
           'v1/sync/transactions?after=$after&limit=50',
           token,
@@ -58,7 +62,7 @@ class HttpTransactionSyncGateway implements TransactionSyncGateway {
     SyncOperation operation, {
     String? dataset,
   }) async => SyncRecord.fromJson(
-    await _request(
+    await requestJson(
       'POST',
       'v1/sync/transactions',
       token,
@@ -74,7 +78,7 @@ class HttpTransactionSyncGateway implements TransactionSyncGateway {
   }) async {
     if (!validSyncId(id)) throw const FormatException('Invalid record ID');
     return SyncRecord.fromJson(
-      await _request(
+      await requestJson(
         'GET',
         'v1/sync/transactions/$id',
         token,
@@ -83,7 +87,7 @@ class HttpTransactionSyncGateway implements TransactionSyncGateway {
     );
   }
 
-  Future<Map<String, dynamic>> _request(
+  Future<Map<String, dynamic>> requestJson(
     String method,
     String path,
     String token, {

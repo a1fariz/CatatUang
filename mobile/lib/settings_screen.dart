@@ -9,6 +9,7 @@ import 'transaction_repository.dart';
 import 'sync/sync_controller.dart';
 import 'sync/sync_card.dart';
 import 'backup/backup_screen.dart';
+import 'sync/bill_sync_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -253,6 +254,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: const Text('Ekspor atau pulihkan data di luar aplikasi.'),
             onTap: _busy ? null : _backup,
           ),
+          if (widget.account case final account?)
+            ListTile(
+              leading: const Icon(Icons.receipt_long),
+              title: const Text('Sinkronisasi tagihan dan pembayaran'),
+              onTap: _busy
+                  ? null
+                  : () => Navigator.of(context).push<void>(
+                      MaterialPageRoute(
+                        builder: (_) => BillSyncScreen(
+                          repository: widget.repository,
+                          account: account,
+                          reminders: _reminders,
+                          onChanged: () => widget.onDataCleared?.call(),
+                        ),
+                      ),
+                    ),
+            ),
           if (widget.sync case final sync?)
             TransactionSyncCard(controller: sync),
           const SizedBox(height: 20),

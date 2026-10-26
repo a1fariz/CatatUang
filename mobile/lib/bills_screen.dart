@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'bill.dart';
+import 'sync/bill_sync_models.dart';
 import 'money_format.dart';
 import 'reminder_service.dart';
 import 'settings.dart';
@@ -121,11 +122,13 @@ class _BillsScreenState extends State<BillsScreen> {
           bill.recurrence != BillRecurrence.once &&
           bill.reminderMinutes != null) {
         final updated = bill.copyWith(
-          dueAt: nextDueDate(
-            bill.dueAt,
-            bill.recurrence,
-            recurrenceDay: bill.recurrenceDay,
-          ),
+          dueAt: bill.timezone != null
+              ? nextZonedBillDue(bill)
+              : nextDueDate(
+                  bill.dueAt,
+                  bill.recurrence,
+                  recurrenceDay: bill.recurrenceDay,
+                ),
         );
         await _reminders.schedule(
           updated,
@@ -520,6 +523,7 @@ class _BillFormState extends State<BillForm> {
       recurrenceDay: _recurrenceDay,
       reminderMinutes: permissionGranted ? requestedReminder : null,
       status: BillStatus.active,
+      timezone: widget.bill?.timezone,
     );
     try {
       final id = await widget.repository.saveBill(bill);
@@ -532,6 +536,7 @@ class _BillFormState extends State<BillForm> {
         recurrenceDay: bill.recurrenceDay,
         reminderMinutes: bill.reminderMinutes,
         status: bill.status,
+        timezone: bill.timezone,
       );
       var reminderSaved = permissionGranted;
       try {

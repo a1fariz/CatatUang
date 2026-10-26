@@ -78,4 +78,4 @@ jobs:
           done
           curl --fail --silent http://127.0.0.1:18089/readyz
           cd mobile
-          flutter test --no-pub --dart-define=SYNC_TEST_API_URL=http://127.0.0.1:18089 test/sync_backend_test.dart
+          flutter test --no-pub --concurrency=1 --dart-define=SYNC_TEST_API_URL=http://127.0.0.1:18089 test/sync_backend_test.dart test/bill_sync_backend_test.dart
