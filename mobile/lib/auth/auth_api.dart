@@ -42,6 +42,8 @@ abstract interface class AuthGateway {
   });
   Future<AuthUser> me(String token);
   Future<void> logout(String token, {bool all = false});
+  Future<AccountSessionPage> listSessions(String token, {int offset = 0});
+  Future<void> revokeSession(String token, String id);
   Future<void> changePassword(
     String token,
     String currentPassword,
@@ -119,6 +121,36 @@ class HttpAuthGateway implements AuthGateway {
     'Respons layanan akun tidak valid. Coba lagi nanti.',
   );
 
+  @override
+  Future<AccountSessionPage> listSessions(
+    String token, {
+    int offset = 0,
+  }) async {
+    if (offset < 0 || offset > 10000) {
+      throw const AuthFailure('Posisi daftar sesi tidak valid.');
+    }
+    try {
+      return AccountSessionPage.fromJson(
+        await _request(
+          'GET',
+          'v1/auth/sessions?limit=50&offset=$offset',
+          token: token,
+        ),
+        offset,
+      );
+    } on FormatException {
+      throw _invalidResponse;
+    }
+  }
+
+  @override
+  Future<void> revokeSession(String token, String id) async {
+    if (!validSessionId(id)) {
+      throw const AuthFailure('Identitas sesi tidak valid.');
+    }
+    await _request('DELETE', 'v1/auth/sessions/$id', token: token);
+  }
+
   Future<Map<String, dynamic>> _request(
     String method,
     String path, {
@@ -141,10 +173,12 @@ class HttpAuthGateway implements AuthGateway {
         final response = await client.send(request);
         if (response.statusCode == 204 &&
             (path.startsWith('v1/auth/logout') ||
-                path == 'v1/auth/change-password')) {
+                path == 'v1/auth/change-password' ||
+                method == 'DELETE' && path.startsWith('v1/auth/sessions/'))) {
           return <String, dynamic>{};
         }
-        if (path == 'v1/auth/change-password' &&
+        if ((path == 'v1/auth/change-password' ||
+                method == 'DELETE' && path.startsWith('v1/auth/sessions/')) &&
             response.statusCode >= 200 &&
             response.statusCode < 300) {
           throw _invalidResponse;
@@ -190,6 +224,15 @@ class HttpAuthGateway implements AuthGateway {
   }
 
   AuthFailure _httpFailure(int status, String? retry, String path) {
+    if (path.startsWith('v1/auth/sessions') && status != 401) {
+      return AuthFailure(switch (status) {
+        404 => 'Sesi sudah tidak tersedia. Perbarui daftar sesi.',
+        422 =>
+          'Sesi ini tidak dapat dicabut dari daftar. Gunakan Keluar dari akun untuk sesi saat ini.',
+        _ =>
+          'Daftar atau pencabutan sesi belum dapat dipastikan. Perbarui daftar sebelum mencoba lagi.',
+      }, status: status);
+    }
     return switch (status) {
       401 => AuthFailure(
         path == 'v1/auth/login'

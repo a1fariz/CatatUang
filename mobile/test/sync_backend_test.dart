@@ -173,6 +173,24 @@ void main() {
           }
           final localBefore = await a.recoverySnapshot();
           final otherBefore = await b.recoverySnapshot();
+          final listed = (await accountA.listSessions())!;
+          expect(listed.items.where((item) => item.current), hasLength(1));
+          expect(listed.items.where((item) => !item.current), hasLength(1));
+          expect(
+            await accountA.revokeSession(
+              listed.items.firstWhere((item) => !item.current).id,
+            ),
+            isTrue,
+          );
+          await accountB.refresh();
+          expect(accountB.hasSession, isFalse);
+          expect(await a.recoverySnapshot(), localBefore);
+          expect(await b.recoverySnapshot(), otherBefore);
+          expect(
+            await accountB.authenticate(email, password, register: false),
+            isTrue,
+            reason: accountB.message,
+          );
           const changedPassword = 'kata-sandi-baru-dua-perangkat-2026';
           expect(
             await accountA.changePassword(password, changedPassword),

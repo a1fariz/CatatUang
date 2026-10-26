@@ -80,6 +80,59 @@ class AccountController extends ChangeNotifier {
       hasSession &&
       verified &&
       !rateLimited;
+  bool get canManageSessions =>
+      initialized && !busy && !storageProblem && hasSession && verified;
+
+  Future<T?> _sessionManagement<T>(
+    Future<T> Function(String token) action,
+  ) async {
+    if (!canManageSessions || _disposed) {
+      return null;
+    }
+    final session = _session!;
+    if (!session.expiresAt.isAfter(_now())) {
+      await _invalidate('Sesi berakhir. Silakan masuk kembali.');
+      return null;
+    }
+    _busy = true;
+    message = null;
+    _notify();
+    try {
+      final result = await action(session.token);
+      if (_disposed || _session != session) {
+        return null;
+      }
+      return result;
+    } on AuthFailure catch (failure) {
+      if (!_disposed && _session == session) {
+        if (failure.status == 401) {
+          await _invalidate('Sesi berakhir. Silakan masuk kembali.');
+        } else {
+          message = failure.message;
+        }
+      }
+    } catch (_) {
+      if (!_disposed && _session == session) {
+        message =
+            'Pengelolaan sesi belum dapat dipastikan. Perbarui daftar sesi.';
+      }
+    } finally {
+      _busy = false;
+      _notify();
+    }
+    return null;
+  }
+
+  Future<AccountSessionPage?> listSessions({int offset = 0}) =>
+      _sessionManagement(
+        (token) => _gateway.listSessions(token, offset: offset),
+      );
+  Future<bool> revokeSession(String id) async =>
+      await _sessionManagement((token) async {
+        await _gateway.revokeSession(token, id);
+        return true;
+      }) ==
+      true;
 
   void _acceptRateLimit(AuthFailure failure) {
     if (failure.retryAfter case final delay?) {

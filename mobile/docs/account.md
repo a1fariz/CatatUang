@@ -2,6 +2,8 @@
 
 Halaman **Pengaturan → Akun** menyediakan daftar, login, pemeriksaan sesi, serta logout satu/seluruh perangkat. Pencatatan SQLite tidak memerlukan akun. Login/logout tidak mengunggah, mengimpor, mengaitkan, atau menghapus catatan lokal. [Sinkronisasi transaksi](transaction-sync.md) memakai persetujuan penautan terpisah dan tombol manual di Pengaturan.
 
+[Lihat sesi masuk](sessions.md) menampilkan sesi aktif dan menyediakan pencabutan satu login lain. ID daftar terpisah dari token; catatan lokal tidak dihapus saat sesi dicabut.
+
 ## Menjalankan untuk pengembangan
 
 Siapkan backend sesuai `../../backend/README.md`, jalankan `migrate up`, lalu API. Untuk emulator Android bawaan, alamat `10.0.2.2` merujuk host pengembangan:

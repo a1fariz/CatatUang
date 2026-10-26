@@ -33,6 +33,12 @@ Sesi kedaluwarsa/dicabut menghasilkan 401. Tidak ada refresh token; lakukan logi
 
 Login/register memiliki fixed window 15 menit dengan maksimum 20 percobaan untuk masing-masing IP koneksi dan email. Percobaan sukses tetap dihitung. 429 menyertakan `Retry-After: 900`. Jangan mengulang login otomatis tanpa jeda. `X-Forwarded-For` diabaikan; reverse proxy memerlukan rancangan trusted proxy sebelum melayani banyak pengguna.
 
+## Sesi masuk
+
+`GET /v1/auth/sessions?limit=50&offset=0` memakai Bearer dan mengembalikan sesi aktif milik akun tersebut, dengan sesi pemanggil di urutan pertama. Limit 1–100, offset 0–10000; hanya dua parameter tersebut diterima. Envelope memakai `items`, `limit`, `offset`, `has_more`. Setiap item berisi UUID publik `id`, boolean `current`, `created_at`, dan `expires_at`, tanpa token/hash/IP. HEAD tersedia.
+
+`DELETE /v1/auth/sessions/{id}` mencabut satu sesi aktif lain dari akun yang sama. Sukses 204; sesi sendiri 422 (gunakan logout); sesi asing, kedaluwarsa, atau sudah dicabut 404; token pemanggil tidak valid 401. Sesi pemanggil diperiksa lagi setelah row lock pengguna diperoleh. Daftar dapat berubah selama pagination; refresh dari offset 0 setelah mutasi. Panduan Flutter: [mengelola sesi](../../mobile/docs/sessions.md).
+
 ## Transaksi
 
 ```powershell

@@ -38,10 +38,12 @@ func (a *API) serveData(w http.ResponseWriter, r *http.Request, id string) bool 
 	me := path == "/v1/me"
 	logout := path == "/v1/auth/logout" || path == "/v1/auth/logout-all"
 	passwordChange := path == "/v1/auth/change-password"
+	sessions := path == "/v1/auth/sessions"
+	sessionEntity := len(parts) == 4 && parts[0] == "v1" && parts[1] == "auth" && parts[2] == "sessions" && service.ValidID(parts[3])
 	syncCollection := path == "/v1/sync/transactions"
 	syncState := path == "/v1/sync/state"
 	syncEntity := len(parts) == 4 && parts[0] == "v1" && parts[1] == "sync" && parts[2] == "transactions" && service.ValidID(parts[3])
-	if !collection && !entity && !me && !logout && !syncCollection && !syncEntity && !syncState && !passwordChange {
+	if !collection && !entity && !me && !logout && !syncCollection && !syncEntity && !syncState && !passwordChange && !sessions && !sessionEntity {
 		return false
 	}
 	methods := "GET, HEAD"
@@ -51,6 +53,8 @@ func (a *API) serveData(w http.ResponseWriter, r *http.Request, id string) bool 
 		methods = "GET, HEAD, POST"
 	} else if entity && !billAction {
 		methods = "GET, HEAD, PUT, DELETE"
+	} else if sessionEntity {
+		methods = "DELETE"
 	}
 	if !a.allow(w, r, id, methods) {
 		return true
@@ -74,6 +78,33 @@ func (a *API) serveData(w http.ResponseWriter, r *http.Request, id string) bool 
 	}
 	if me {
 		a.json(w, r, 200, user)
+		return true
+	}
+	if sessions || sessionEntity {
+		if sessionEntity {
+			if r.URL.RawQuery != "" {
+				a.serviceError(w, r, id, service.ErrInvalid)
+				return true
+			}
+			err = a.service.RevokeSession(ctx, user.ID, header[1], parts[3])
+			if err != nil {
+				a.serviceError(w, r, id, err)
+			} else {
+				w.WriteHeader(204)
+			}
+		} else {
+			options, optionErr := sessionOptions(r)
+			if optionErr != nil {
+				a.serviceError(w, r, id, optionErr)
+				return true
+			}
+			values, listErr := a.service.ListSessions(ctx, user.ID, header[1], options)
+			if listErr != nil {
+				a.serviceError(w, r, id, listErr)
+			} else {
+				writeList(a, w, r, values, options)
+			}
+		}
 		return true
 	}
 	if passwordChange {
@@ -449,6 +480,19 @@ func listOptions(r *http.Request, transaction bool) (service.ListOptions, error)
 		return o, service.ErrInvalid
 	}
 	return o, nil
+}
+
+func sessionOptions(r *http.Request) (service.ListOptions, error) {
+	query, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		return service.ListOptions{}, service.ErrInvalid
+	}
+	for key := range query {
+		if key != "limit" && key != "offset" {
+			return service.ListOptions{}, service.ErrInvalid
+		}
+	}
+	return listOptions(r, false)
 }
 func writeList[T any](a *API, w http.ResponseWriter, r *http.Request, values []T, o service.ListOptions) {
 	more := len(values) > o.Limit

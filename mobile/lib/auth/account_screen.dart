@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'account_controller.dart';
 import 'password_screen.dart';
+import 'sessions_screen.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key, required this.controller});
@@ -160,6 +161,19 @@ class _AccountScreenState extends State<AccountScreen> {
                   onPressed: account.canChangePassword ? _changePassword : null,
                   icon: const Icon(Icons.lock_outline),
                   label: const Text('Ganti kata sandi'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: account.canManageSessions
+                      ? () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                AccountSessionsScreen(controller: account),
+                          ),
+                        )
+                      : null,
+                  icon: const Icon(Icons.devices_outlined),
+                  label: const Text('Lihat sesi masuk'),
                 ),
                 const SizedBox(height: 12),
                 FilledButton(

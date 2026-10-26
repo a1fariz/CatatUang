@@ -51,6 +51,40 @@ class FakeAuthGateway implements AuthGateway {
   AuthFailure? passwordFailure;
   Completer<void>? pendingPasswordChange;
   int passwordChanges = 0;
+  AuthFailure? sessionsFailure;
+  final sessions = <AccountSessionInfo>[];
+  int sessionLists = 0, sessionRevocations = 0;
+  @override
+  Future<AccountSessionPage> listSessions(
+    String token, {
+    int offset = 0,
+  }) async {
+    sessionLists++;
+    if (sessionsFailure != null) {
+      throw sessionsFailure!;
+    }
+    return AccountSessionPage(
+      items: sessions.skip(offset).take(50).toList(),
+      offset: offset,
+      hasMore: sessions.length > offset + 50,
+    );
+  }
+
+  @override
+  Future<void> revokeSession(String token, String id) async {
+    sessionRevocations++;
+    if (sessionsFailure != null) {
+      throw sessionsFailure!;
+    }
+    if (sessions.any((session) => session.id == id && session.current)) {
+      throw const AuthFailure(
+        'Gunakan Keluar dari akun untuk sesi ini.',
+        status: 422,
+      );
+    }
+    sessions.removeWhere((item) => item.id == id);
+  }
+
   AuthSession? issued;
   AuthUser currentUser = testUser;
   Completer<AuthSession>? pendingAuthentication;

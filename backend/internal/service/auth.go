@@ -174,12 +174,20 @@ func (s *Service) CurrentUser(ctx context.Context, token string) (User, error) {
 	return u, err
 }
 func (s *Service) Logout(ctx context.Context, user, token string, all bool) error {
-	if all {
-		_, err := s.Pool.Exec(ctx, "DELETE FROM sessions WHERE user_id=$1", user)
+	tx, _, err := s.beginSessionMutation(ctx, user, token)
+	if err != nil {
 		return err
 	}
-	_, err := s.Pool.Exec(ctx, "DELETE FROM sessions WHERE user_id=$1 AND token_hash=$2", user, tokenHash(token))
-	return err
+	defer tx.Rollback(context.Background())
+	if all {
+		_, err = tx.Exec(ctx, "DELETE FROM sessions WHERE user_id=$1", user)
+	} else {
+		_, err = tx.Exec(ctx, "DELETE FROM sessions WHERE user_id=$1 AND token_hash=$2", user, tokenHash(token))
+	}
+	if err != nil {
+		return dbError(err)
+	}
+	return dbError(tx.Commit(ctx))
 }
 
 // Maintenance is an explicit operator action, not a background request side effect.

@@ -2,6 +2,15 @@
 
 ## 2026-10-26
 
+### Daftar dan pencabutan sesi masuk
+- Workflow Backend dan Mobile commit `63c6baf` berhasil di GitHub.
+- Tambah migrasi `000005_session_ids.sql` untuk ID publik sesi yang terpisah dari kredensial. Token, hash, created_at, dan expiry sesi lama dipertahankan; migrasi lama tidak diubah.
+- Tambah GET/HEAD daftar sesi aktif dengan pagination dan DELETE satu sesi lain yang dibatasi akun pemanggil. Daftar tidak memuat token, hash, IP, atau fingerprint perangkat. Sesi sendiri ditolak dari endpoint pencabutan, gunakan logout.
+- Pencabutan, logout, dan logout-all memakai row lock pengguna serta validasi ulang token di transaksi. Sesi yang dicabut saat menunggu lock tidak bisa melanjutkan pencabutan sesi lain.
+- Flutter menyediakan Lihat sesi masuk, penanda sesi saat ini, konfirmasi pencabutan, load more, refresh, dan penanganan 401/404 tanpa menulis ulang secure token. Daftar menggambarkan login, bukan identifikasi perangkat fisik.
+- Verifikasi: seluruh tes backend dengan race detector dan tes upgrade sesi lama lulus, go vet/build lulus, OpenAPI 0.6 valid dengan 7 warning gaya. Flutter analyze bersih dan 112 unit/widget tests lulus. Skenario dua SQLite terhadap backend nyata berhasil mencabut sesi kedua sambil mempertahankan catatan/antrean lokal serta sesi pemanggil. Database/proses tes dibersihkan; aplikasi tidak dipasang ke emulator.
+- APK final diverifikasi: package normal, sertifikat debug asli, dan seluruh 24 source Dart cocok dengan kernel. SHA-256 `.tools/catat-uang-sync-debug.apk`: `f4c5b22e4ef43adb9c0fc97e44bd86af4c75b5f0f97aa6858a546babd49ddce7`.
+
 ### Ganti kata sandi dan konsistensi sesi
 - CI commit `b0b18d4` berhasil untuk Backend dan Mobile.
 - Tambah endpoint Bearer `/v1/auth/change-password`, verifikasi sandi lama, hash Argon2id baru, serta pencabutan sesi lain dalam satu transaksi. Token aktif dan expiry semula dipertahankan; tidak ada migrasi/skema keuangan baru.
