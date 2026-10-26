@@ -304,7 +304,14 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Pengaturan').last);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Hapus semua data lokal'));
+    await tester.scrollUntilVisible(
+      find.text('Hapus semua data lokal'),
+      300,
+      scrollable: find.descendant(
+        of: find.byType(SettingsScreen),
+        matching: find.byType(Scrollable),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Hapus semua data lokal'));
     await tester.pumpAndSettle();

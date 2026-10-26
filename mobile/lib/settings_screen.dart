@@ -8,6 +8,7 @@ import 'settings.dart';
 import 'transaction_repository.dart';
 import 'sync/sync_controller.dart';
 import 'sync/sync_card.dart';
+import 'backup/backup_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -65,6 +66,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _busy = false;
         _error = 'Pengaturan gagal disimpan. Coba lagi.';
       });
+    }
+  }
+
+  Future<void> _backup() async {
+    final restored = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ExternalBackupScreen(repository: widget.repository),
+      ),
+    );
+    if (restored != true || !mounted) {
+      return;
+    }
+    final settings = await widget.repository.getSettings();
+    await widget.sync?.reload();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _settings = settings);
+    widget.onChanged(settings);
+    widget.onDataCleared?.call();
+    final locale = Localizations.localeOf(context);
+    try {
+      await _reminders.reconcile(
+        await widget.repository.listBills(),
+        settings: settings,
+        locale: locale,
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Data dipulihkan, tetapi pengingat perlu diperiksa kembali.',
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -209,6 +247,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           _accountEntry(),
+          ListTile(
+            leading: const Icon(Icons.backup_outlined),
+            title: const Text('Backup file terenkripsi'),
+            subtitle: const Text('Ekspor atau pulihkan data di luar aplikasi.'),
+            onTap: _busy ? null : _backup,
+          ),
           if (widget.sync case final sync?)
             TransactionSyncCard(controller: sync),
           const SizedBox(height: 20),

@@ -8,9 +8,11 @@ import 'settings.dart';
 import 'transaction.dart';
 import 'sync/sync_models.dart';
 import 'sync/sync_recovery.dart';
+import 'backup/backup_codec.dart';
 
 part 'sync/sync_repository.dart';
 part 'sync/recovery_repository.dart';
+part 'backup/backup_repository.dart';
 
 class TransactionRepository {
   TransactionRepository({DatabaseFactory? factory, String? databasePath})
