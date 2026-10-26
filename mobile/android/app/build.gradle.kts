@@ -17,6 +17,16 @@ val integrationTarget = providers.gradleProperty("catatUangIntegrationTest").orN
     flutterTarget.startsWith("integration_test/") || flutterTarget.contains("/integration_test/") ||
     dartDefines.any { it == "INTEGRATION_TEST=true" || it.startsWith("AUTH_TEST_API_URL=") }
 
+val releaseRequested = gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
+val releaseStorePath = providers.environmentVariable("CATATUANG_KEYSTORE_PATH").orNull
+val releaseAlias = providers.environmentVariable("CATATUANG_KEY_ALIAS").orNull
+val releaseStorePassword = providers.environmentVariable("CATATUANG_STORE_PASSWORD").orNull
+val releaseKeyPassword = providers.environmentVariable("CATATUANG_KEY_PASSWORD").orNull
+val releaseSigningReady = listOf(releaseStorePath, releaseAlias, releaseStorePassword, releaseKeyPassword).all { !it.isNullOrBlank() }
+if (releaseRequested && !releaseSigningReady) {
+    throw GradleException("Release requires CATATUANG_KEYSTORE_PATH, CATATUANG_KEY_ALIAS, CATATUANG_STORE_PASSWORD and CATATUANG_KEY_PASSWORD. See docs/native-verification.md.")
+}
+
 android {
     namespace = "dev.catatuang.catat_uang"
     compileSdk = flutter.compileSdkVersion
@@ -29,7 +39,6 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = if (integrationTarget) "dev.catatuang.catat_uang.integration" else "dev.catatuang.catat_uang"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
@@ -43,11 +52,19 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (releaseSigningReady) {
+            create("release") {
+                storeFile = file(releaseStorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 }

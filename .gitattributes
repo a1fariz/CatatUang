@@ -1,2 +1,4 @@
 backend/** text eol=lf
 .github/workflows/backend.yml text eol=lf
+.github/workflows/mobile.yml text eol=lf
+*.sh text eol=lf

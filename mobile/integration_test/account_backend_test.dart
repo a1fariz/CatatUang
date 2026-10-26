@@ -135,7 +135,11 @@ void main() {
         await submitCredentials(register: false);
         final active = await store.read();
         expect(active, isNotNull);
-        await tester.ensureVisible(find.text('Keluar dari akun'));
+        await tester.scrollUntilVisible(
+          find.text('Keluar dari akun').hitTestable(),
+          200,
+          scrollable: find.byType(Scrollable).last,
+        );
         await tester.pumpAndSettle();
         await tester.tap(find.text('Keluar dari akun'));
         await tester.pumpAndSettle();
