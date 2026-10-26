@@ -83,7 +83,7 @@ Error publik tidak berisi detail driver atau koneksi. Request ID yang sama ada p
 
 Endpoint data memerlukan `Authorization: Bearer TOKEN`. PUT/DELETE/pay memerlukan `If-Match` dari ETag terakhir; pay juga memerlukan UUID pada `Idempotency-Key`. Permintaan JSON maksimal 16 KiB; field asing, field duplikat, dan alias nama field berbeda kapitalisasi ditolak.
 
-Password di-hash menggunakan Argon2id, dengan salt acak per password. Token acak 256-bit hanya tersimpan sebagai SHA-256 di database. Login/register dibatasi 20 percobaan per 15 menit untuk masing-masing IP koneksi dan email ternormalisasi. Forwarded headers tidak dipercaya; ketika memakai reverse proxy, semua klien melalui proxy berbagi batas IP sampai kebijakan trusted proxy dirancang.
+Password di-hash menggunakan Argon2id, dengan salt acak per password. Token acak 256-bit hanya tersimpan sebagai SHA-256 di database. Login/register dibatasi 20 percobaan per 15 menit untuk masing-masing IP koneksi dan email ternormalisasi. Forwarded headers hanya dipercaya dari proxy yang tercantum dalam `TRUSTED_PROXY_CIDRS`; konfigurasi production memakai alamat proxy spesifik. Lihat [runbook](docs/operations.md) untuk konfigurasi dan aturan header.
 
 ## Migrasi dan pemeriksaan
 
@@ -109,8 +109,8 @@ Setiap tes integrasi membuat database baru bernama `catatuang_test_*` dan mengha
 
 Jalankan `./scripts/go.ps1 run ./cmd/cleanup` secara berkala menggunakan environment database yang sama untuk menghapus sesi dan bucket rate limit yang kedaluwarsa. Tidak ada job yang dipasang otomatis. Contoh container: `docker compose run --rm --entrypoint /app/cleanup api`. Cleanup tidak menghapus transaksi, tagihan, atau pembayaran.
 
-Workflow `.github/workflows/backend.yml` menjalankan format, module verification, vet, govulncheck, tes dengan race detector dan PostgreSQL, build binary, build image Docker, serta startup/readiness dan graceful shutdown container. Race detector lokal memerlukan toolchain C yang sesuai; Linux CI menyediakannya. Workflow belum dijalankan di GitHub; hasil pemeriksaan lokal dicatat di `docs/verification.md` dan `docs/api-verification.md`.
+Workflow `.github/workflows/backend.yml` menjalankan format, module verification, vet, govulncheck, tes dengan race detector dan PostgreSQL, build binary, build image Docker, serta startup/readiness dan graceful shutdown container. Race detector lokal memerlukan toolchain C yang sesuai; Linux CI menyediakannya. Bukti workflow yang sudah lulus serta batas pengujian dicatat di [laporan verifikasi proyek](../VERIFICATION.md). Untuk menguji email tanpa provider, jalankan [uji alur SMTP loopback](docs/account-email.md#uji-alur-email-utuh-tanpa-provider).
 
 ## Batas implementasi
 
-Belum tersedia verifikasi email, reset/ganti password, refresh token, endpoint pengaturan akun, sinkronisasi Flutter, backup production, atau deployment publik. Sesi kedaluwarsa mengharuskan login ulang. API menyimpan mata uang secara eksplisit per catatan; kebijakan satu mata uang aktif harus diputuskan saat integrasi dengan pengaturan mobile. Baca `docs/architecture.md` sebelum memperluas endpoint.
+Verifikasi email, reset/ganti password, pengelolaan sesi, sinkronisasi Flutter transaksi/tagihan, serta alat backup/restore server sudah tersedia. Hosting/domain publik, provider email, dan jadwal backup/monitoring production belum dikonfigurasi. Refresh token dan endpoint pengaturan akun belum tersedia; sesi kedaluwarsa mengharuskan login ulang. API menyimpan mata uang per catatan; Flutter mengikat persetujuan sinkronisasi pada identitas server/akun, dataset, dan mata uang ledger. Baca [arsitektur](docs/architecture.md), [panduan sinkronisasi](docs/transaction-sync.md), dan [operasional](docs/operations.md) sebelum memperluas endpoint atau melakukan deploy.

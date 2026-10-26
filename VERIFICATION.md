@@ -38,3 +38,7 @@ Kegagalan native sebelumnya dicatat apa adanya: userdata terlalu besar untuk dis
 Yang menunggu sarana eksternal: hosting/domain dan pengujian HTTPS publik, provider email/deliverability, secret serta keystore production/App Signing, pengujian SAF provider dokumen dan penerimaan notifikasi/reboot/battery saver di perangkat khusus, dua perangkat Android nyata, serta build/perangkat iOS dengan macOS/Xcode. Pengguna memilih konfigurasi dan pengujian lokal dahulu karena layanan/perangkat tersebut belum ada. Daftar ini tidak diganti dengan klaim persentase production.
 
 Panduan: [operasional](backend/docs/operations.md), [email akun](backend/docs/account-email.md), [tagihan](mobile/docs/bill-sync.md), [backup](mobile/docs/external-backup.md), dan [native/signing](mobile/docs/native-verification.md).
+
+## Progres lanjutan: email akun melalui SMTP loopback
+
+Setelah baseline penuntasan di atas, ditambahkan `TestAccountRecoverySMTPRoundTrip` yang mengambil kode dari MIME hasil pengiriman SMTP sungguhan, kemudian mengonfirmasinya melalui HTTP. Pemeriksaan mencakup ACK/outbox, verifikasi akun, reset sekali pakai, pencabutan sesi lama, login baru, dan isi transaksi yang sama setelah pemulihan. Empat tes pemulihan akun/outbox/SMTP lulus dengan PostgreSQL 18 dan race detector; `go vet ./internal/httpapi` lulus. Tidak ada perubahan skema atau kode runtime. Perintah pengujian dan batas cakupan ada di [panduan email](backend/docs/account-email.md#uji-alur-email-utuh-tanpa-provider). Hasil lokal ini terpisah dari hasil workflow baru yang dipicu saat push.

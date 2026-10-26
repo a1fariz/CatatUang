@@ -2,6 +2,12 @@
 
 ## 2026-10-26
 
+### Uji email akun melalui SMTP nyata lokal
+- Tambah `TestAccountRecoverySMTPRoundTrip`: request HTTP → encrypted outbox PostgreSQL → claim/send/finish → sink SMTP loopback → MIME → konfirmasi HTTP. Kode diambil dari pesan yang diterima, tanpa provider atau kredensial SMTP.
+- Periksa alamat/subjek, outbox kosong setelah ACK, email terverifikasi, reset sekali pakai, sesi/password lama ditolak, login password baru, dan transaksi identik setelah pemulihan.
+- Empat tes pemulihan akun/outbox/SMTP lulus dengan PostgreSQL 18 dan race detector; `go vet ./internal/httpapi` lulus. Database tes serta listener dibersihkan dan cluster yang dijalankan untuk tes dihentikan.
+- Dokumentasikan perintah pengujian yang dapat diulang dan batasnya; selaraskan README backend yang masih menyebut fitur email/reset/sinkronisasi belum tersedia. Tes baru ikut suite Backend CI pada push berikutnya; keberhasilan lokal tidak menyatakan workflow baru sudah selesai.
+
 ### Penuntasan pondasi backend dan mobile
 - Progres di-add, commit, dan push terpisah: backup terenkripsi, server dan UI sinkronisasi tagihan/pembayaran, email verification/password reset, konfigurasi operasional, hardening snapshot/kalender, serta native CI. Daftar commit dan bukti ada di [VERIFICATION.md](VERIFICATION.md).
 - Backup file memakai AES-256-GCM/PBKDF2, mengecualikan token akun, mempertahankan antrean inflight, dan restore atomik hanya ke ledger kosong. Format v2 mendukung skema tagihan baru dan tetap membaca format v1.
