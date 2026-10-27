@@ -3,6 +3,8 @@
 ## 2026-10-28
 
 ### Demo terisolasi dan pengalaman pertama
+- Native CI menemukan overflow 17 px saat viewport mengecil karena keyboard. Halaman Catatan diubah ke sliver scroll yang tetap merender list secara lazy; ringkasan nol tidak menutupi panduan pada ledger pertama. Regresi viewport 411×731/inset keyboard/font besar ditambahkan; 19 tes terkait serta analyzer lulus setelah perbaikan.
+- Capture pertama gagal menunggu hierarchy Android sebelum UI siap. Dump kini memakai lokasi shell sementara dan penantian terbatas dengan validasi XML. Workflow memisahkan artefak APK/media dan hanya mengizinkan reuse APK jika source aplikasi sama.
 - Tambah entrypoint demo offline dengan application ID `.demo`, label Catat Uang Demo, serta ruang data contoh/kosong terpisah. Seed atomik hanya di `catat_uang_demo.db`, tidak berulang saat reopen/clear, dan menolak database reguler. Data fiktif diberi label contoh.
 - Tambah panduan transaksi pertama dan CTA langsung ke form. Status transaksi membedakan lokal/belum tertaut, status belum diketahui, proses berjalan, masalah akun/konflik, pending, serta antrean kosong dengan waktu sinkronisasi terakhir; tidak mengklaim data server selalu terbaru. Tagihan tetap dijelaskan memiliki penautan terpisah.
 - 25 tes terkait lulus lokal secara serial dan analyzer bersih. Workflow demo membangun APK terisolasi dan merekam layar aplikasi nyata di emulator Linux CI. Hasil media belum diasumsikan sebelum capture selesai.

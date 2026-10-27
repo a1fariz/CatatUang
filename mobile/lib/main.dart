@@ -455,28 +455,42 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         ],
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            SyncStatusNotice(controller: widget.sync, onTap: widget.onOpenSync),
-            _Summary(
-              income: income,
-              expense: expense,
-              currencyCode: widget.settings.currencyCode,
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'all', label: Text('Semua')),
-                  ButtonSegment(value: 'income', label: Text('Masuk')),
-                  ButtonSegment(value: 'expense', label: Text('Keluar')),
-                ],
-                selected: {_filter},
-                onSelectionChanged: (selected) =>
-                    setState(() => _filter = selected.first),
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: SyncStatusNotice(
+                controller: widget.sync,
+                onTap: widget.onOpenSync,
               ),
             ),
-            Expanded(child: _content(visible)),
+            if (!_firstEntry || _loading)
+              SliverToBoxAdapter(
+                child: _Summary(
+                  income: income,
+                  expense: expense,
+                  currencyCode: widget.settings.currencyCode,
+                ),
+              ),
+            if (!_firstEntry || _loading)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                  child: SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'all', label: Text('Semua')),
+                      ButtonSegment(value: 'income', label: Text('Masuk')),
+                      ButtonSegment(value: 'expense', label: Text('Keluar')),
+                    ],
+                    selected: {_filter},
+                    onSelectionChanged: (selected) =>
+                        setState(() => _filter = selected.first),
+                  ),
+                ),
+              ),
+            if (_loading || _error != null || visible.isEmpty)
+              SliverToBoxAdapter(child: _content(visible))
+            else
+              _content(visible),
           ],
         ),
       ),
@@ -516,7 +530,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
     if (visible.isEmpty) {
       final hasAny = _transactions.isNotEmpty;
-      return SingleChildScrollView(
+      return Padding(
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 100),
         child: Padding(
           padding: const EdgeInsets.all(8),
@@ -564,61 +578,62 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         ),
       );
     }
-    return ListView.separated(
+    return SliverPadding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-      itemCount: visible.length,
-      separatorBuilder: (_, _) => const Divider(height: 1, indent: 56),
-      itemBuilder: (context, index) {
-        final transaction = visible[index];
-        final isIncome = transaction.type == TransactionType.income;
-        return ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 4,
-            vertical: 4,
-          ),
-          leading: CircleAvatar(
-            backgroundColor: isIncome
-                ? Theme.of(context).colorScheme.tertiaryContainer
-                : Theme.of(context).colorScheme.errorContainer,
-            foregroundColor: isIncome
-                ? Theme.of(context).colorScheme.onTertiaryContainer
-                : Theme.of(context).colorScheme.onErrorContainer,
-            child: Icon(isIncome ? Icons.south_west : Icons.north_east),
-          ),
-          title: Text(transaction.category),
-          subtitle: Text(
-            [
-              _dateLabel(transaction.occurredAt),
-              if (transaction.note.isNotEmpty) transaction.note,
-            ].join(' · '),
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${isIncome ? '+' : '−'}${formatMoneyAmount(transaction.amount, widget.settings.currencyCode, Localizations.localeOf(context))}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: isIncome
-                      ? Theme.of(context).colorScheme.tertiary
-                      : null,
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          if (index.isOdd) return const Divider(height: 1, indent: 56);
+          final transaction = visible[index ~/ 2];
+          final isIncome = transaction.type == TransactionType.income;
+          return ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 4,
+              vertical: 4,
+            ),
+            leading: CircleAvatar(
+              backgroundColor: isIncome
+                  ? Theme.of(context).colorScheme.tertiaryContainer
+                  : Theme.of(context).colorScheme.errorContainer,
+              foregroundColor: isIncome
+                  ? Theme.of(context).colorScheme.onTertiaryContainer
+                  : Theme.of(context).colorScheme.onErrorContainer,
+              child: Icon(isIncome ? Icons.south_west : Icons.north_east),
+            ),
+            title: Text(transaction.category),
+            subtitle: Text(
+              [
+                _dateLabel(transaction.occurredAt),
+                if (transaction.note.isNotEmpty) transaction.note,
+              ].join(' · '),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${isIncome ? '+' : '−'}${formatMoneyAmount(transaction.amount, widget.settings.currencyCode, Localizations.localeOf(context))}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: isIncome
+                        ? Theme.of(context).colorScheme.tertiary
+                        : null,
+                  ),
                 ),
-              ),
-              PopupMenuButton<String>(
-                tooltip: 'Aksi transaksi',
-                onSelected: (action) {
-                  if (action == 'edit') _openForm(transaction);
-                  if (action == 'delete') _delete(transaction);
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Ubah')),
-                  PopupMenuItem(value: 'delete', child: Text('Hapus')),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
+                PopupMenuButton<String>(
+                  tooltip: 'Aksi transaksi',
+                  onSelected: (action) {
+                    if (action == 'edit') _openForm(transaction);
+                    if (action == 'delete') _delete(transaction);
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Ubah')),
+                    PopupMenuItem(value: 'delete', child: Text('Hapus')),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }, childCount: visible.length * 2 - 1),
+      ),
     );
   }
 

@@ -13,6 +13,35 @@ import 'sync_fakes.dart';
 
 void main() {
   setUpAll(sqfliteFfiInit);
+  testWidgets('ledger stays scrollable on phone viewport with keyboard inset', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(411, 731);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repo = TransactionRepository(
+      factory: databaseFactoryFfiNoIsolate,
+      databasePath: inMemoryDatabasePath,
+    );
+    addTearDown(repo.close);
+    await repo.save(localTransaction());
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(411, 731),
+            viewInsets: EdgeInsets.only(bottom: 320),
+            textScaler: TextScaler.linear(1.3),
+          ),
+          child: TransactionsScreen(repository: repo),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(CustomScrollView), findsOneWidget);
+  });
   test(
     'demo seed is isolated, atomic and does not duplicate after reopen/clear',
     () async {

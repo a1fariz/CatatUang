@@ -1,10 +1,17 @@
 name: Demo artifacts
 on:
   workflow_dispatch:
+    inputs:
+      apk_run_id:
+        description: 'Optional previous demo APK run; only if application source is unchanged'
+        required: false
+        default: ''
 permissions:
   contents: read
+  actions: read
 jobs:
   build:
+    if: inputs.apk_run_id == ''
     runs-on: ubuntu-latest
     timeout-minutes: 40
     defaults:
@@ -33,7 +40,7 @@ jobs:
           aapt=$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -n 1)
           "$aapt" dump badging "$RUNNER_TEMP/demo-artifacts/catat-uang-demo.apk" | grep -F "package: name='dev.catatuang.catat_uang.demo'"
           echo "$GITHUB_SHA" > "$RUNNER_TEMP/demo-artifacts/apk-source-commit.txt"
-          sha256sum "$RUNNER_TEMP/demo-artifacts/catat-uang-demo.apk" > "$RUNNER_TEMP/demo-artifacts/apk-sha256.txt"
+          (cd "$RUNNER_TEMP/demo-artifacts" && sha256sum catat-uang-demo.apk > apk-sha256.txt)
       - uses: actions/upload-artifact@v4
         with:
           name: catat-uang-demo-apk
@@ -41,10 +48,13 @@ jobs:
           retention-days: 14
   capture:
     needs: build
+    if: always() && (needs.build.result == 'success' || needs.build.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.6'
@@ -54,6 +64,14 @@ jobs:
         with:
           name: catat-uang-demo-apk
           path: ${{ runner.temp }}/demo-artifacts/
+          run-id: ${{ inputs.apk_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+      - name: Verify APK source matches application
+        run: |
+          apk_commit=$(cat "$RUNNER_TEMP/demo-artifacts/apk-source-commit.txt")
+          [[ "$apk_commit" =~ ^[0-9a-f]{40}$ ]]
+          git diff --exit-code "$apk_commit" "$GITHUB_SHA" -- mobile/lib mobile/android mobile/pubspec.yaml mobile/pubspec.lock
+          (cd "$RUNNER_TEMP/demo-artifacts" && sha256sum --check apk-sha256.txt)
       - name: Prepare disposable capture runner
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc
@@ -82,5 +100,10 @@ jobs:
         if: always()
         with:
           name: catat-uang-demo
-          path: ${{ runner.temp }}/demo-artifacts/
+          path: |
+            ${{ runner.temp }}/demo-artifacts/*.png
+            ${{ runner.temp }}/demo-artifacts/*.xml
+            ${{ runner.temp }}/demo-artifacts/*.mp4
+            ${{ runner.temp }}/demo-artifacts/*.json
+            ${{ runner.temp }}/demo-artifacts/*.txt
           retention-days: 14

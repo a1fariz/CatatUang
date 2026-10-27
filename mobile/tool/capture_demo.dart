@@ -40,17 +40,31 @@ Future<void> main(List<String> args) async {
     throw StateError('Demo APK missing');
   }
   Future<String> ui() async {
-    await adb([
-      'shell',
-      'uiautomator',
-      'dump',
-      '/sdcard/catatuang-demo-ui.xml',
-    ]);
-    return (await adb([
-      'shell',
-      'cat',
-      '/sdcard/catatuang-demo-ui.xml',
-    ])).stdout.toString();
+    const tree = '/data/local/tmp/catatuang-demo-ui.xml';
+    for (var attempt = 0; attempt < 6; attempt++) {
+      await adb(['shell', 'rm', '-f', tree]);
+      final dump = await adb([
+        'shell',
+        'uiautomator',
+        'dump',
+        '--compressed',
+        tree,
+      ]);
+      final result = await Process.run('adb', [
+        '-s',
+        device,
+        'shell',
+        'cat',
+        tree,
+      ]);
+      final xml = result.stdout.toString();
+      if (result.exitCode == 0 && xml.contains('<hierarchy')) return xml;
+      stdout.writeln(
+        'Waiting for UI hierarchy (${attempt + 1}/6): ${dump.stdout.toString().trim()}',
+      );
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+    throw StateError('Android accessibility hierarchy did not become ready');
   }
 
   Future<void> tap(String label, {bool scroll = false}) async {
