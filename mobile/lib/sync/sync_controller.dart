@@ -25,6 +25,7 @@ class TransactionSyncController extends ChangeNotifier {
   List<RecoveryBackup> backups = [];
   bool _disposed = false;
   String? message;
+  bool statusLoaded = false;
   bool get ownerMatches =>
       binding == null ||
       binding!.userId == account.user?.id &&
@@ -40,7 +41,9 @@ class TransactionSyncController extends ChangeNotifier {
       pending = await repository.syncPendingCount();
       issues = await repository.syncIssues();
       backups = await repository.recoveryBackups();
+      statusLoaded = true;
     } catch (_) {
+      statusLoaded = false;
       message = 'Status sinkronisasi gagal dibaca. Coba lagi.';
     }
     _notify();

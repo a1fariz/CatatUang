@@ -15,6 +15,7 @@ import 'transaction.dart';
 import 'transaction_repository.dart';
 import 'sync/sync_api.dart';
 import 'sync/sync_controller.dart';
+import 'sync/sync_status_notice.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,9 +23,14 @@ void main() {
 }
 
 class CatatUangApp extends StatefulWidget {
-  CatatUangApp({super.key}) : repository = TransactionRepository();
+  CatatUangApp({
+    super.key,
+    TransactionRepository? repository,
+    this.demo = false,
+  }) : repository = repository ?? TransactionRepository();
 
   final TransactionRepository repository;
+  final bool demo;
 
   @override
   State<CatatUangApp> createState() => _CatatUangAppState();
@@ -87,6 +93,32 @@ class _CatatUangAppState extends State<CatatUangApp> {
     );
     return MaterialApp(
       title: 'Catat Uang',
+      builder: (context, child) => widget.demo
+          ? Column(
+              children: [
+                const Material(
+                  color: Color(0xFFFFE6B5),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
+                      child: Text(
+                        'DEMO • Data contoh • Tersimpan di perangkat',
+                        style: TextStyle(
+                          color: Color(0xFF513500),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(child: child!),
+              ],
+            )
+          : child!,
       theme: ThemeData(
         colorScheme: colors,
         scaffoldBackgroundColor: surface,
@@ -237,6 +269,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           key: ValueKey('transactions-$_dataRevision'),
           repository: widget.repository,
           settings: _settings,
+          sync: widget.sync,
+          onOpenSync: () => setState(() => _selectedIndex = 2),
         ),
         BillsScreen(
           key: ValueKey('bills-$_dataRevision'),
@@ -276,10 +310,14 @@ class TransactionsScreen extends StatefulWidget {
     super.key,
     this.repository,
     this.settings = const AppSettings(),
+    this.sync,
+    this.onOpenSync,
   });
 
   final TransactionRepository? repository;
   final AppSettings settings;
+  final TransactionSyncController? sync;
+  final VoidCallback? onOpenSync;
 
   @override
   State<TransactionsScreen> createState() => _TransactionsScreenState();
@@ -292,6 +330,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   String _filter = 'all';
   bool _loading = true;
   String? _error;
+  bool _firstEntry = false;
 
   @override
   void initState() {
@@ -323,9 +362,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     });
     try {
       final transactions = await _repository.list(periodStart: _periodStart);
+      final firstEntry = !await _repository.hasEntries();
+      await widget.sync?.reload();
       if (!mounted) return;
       setState(() {
         _transactions = transactions;
+        _firstEntry = firstEntry;
         _loading = false;
       });
     } catch (_) {
@@ -415,6 +457,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            SyncStatusNotice(controller: widget.sync, onTap: widget.onOpenSync),
             _Summary(
               income: income,
               expense: expense,
@@ -473,9 +516,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
     if (visible.isEmpty) {
       final hasAny = _transactions.isNotEmpty;
-      return Center(
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 100),
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(8),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -487,13 +531,33 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               Text(
                 hasAny
                     ? 'Tidak ada transaksi di filter ini.'
+                    : _firstEntry
+                    ? 'Mulai dari satu catatan'
                     : 'Belum ada transaksi periode ini.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               if (!hasAny) ...[
                 const SizedBox(height: 6),
-                const Text('Tambahkan pemasukan atau pengeluaran pertama.'),
+                Text(
+                  _firstEntry
+                      ? '1. Pilih pemasukan atau pengeluaran.\n2. Isi nominal, kategori, dan tanggal.\n3. Simpan. Catatan tetap ada saat aplikasi ditutup.'
+                      : 'Pilih periode lain atau tambahkan transaksi baru.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Bisa digunakan tanpa internet dan tanpa akun.',
+                  textAlign: TextAlign.center,
+                ),
+                if (_firstEntry) ...[
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () => _openForm(),
+                    icon: const Icon(Icons.edit_note),
+                    label: const Text('Catat transaksi pertama'),
+                  ),
+                ],
               ],
             ],
           ),

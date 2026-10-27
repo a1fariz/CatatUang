@@ -15,6 +15,7 @@ part 'sync/sync_repository.dart';
 part 'sync/recovery_repository.dart';
 part 'backup/backup_repository.dart';
 part 'sync/bill_sync_repository.dart';
+part 'demo/demo_repository.dart';
 
 class TransactionRepository {
   TransactionRepository({DatabaseFactory? factory, String? databasePath})

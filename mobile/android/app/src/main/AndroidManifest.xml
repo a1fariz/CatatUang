@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:label="Catat Uang"
+        android:label="${appLabel}"
         android:name="${applicationName}"
         android:networkSecurityConfig="@xml/network_security_config"
         android:usesCleartextTraffic="false"

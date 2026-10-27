@@ -16,6 +16,8 @@ val dartDefines = providers.gradleProperty("dart-defines").orNull.orEmpty()
 val integrationTarget = providers.gradleProperty("catatUangIntegrationTest").orNull == "true" ||
     flutterTarget.startsWith("integration_test/") || flutterTarget.contains("/integration_test/") ||
     dartDefines.any { it == "INTEGRATION_TEST=true" || it.startsWith("AUTH_TEST_API_URL=") }
+val demoTarget = flutterTarget.endsWith("main_demo.dart") || dartDefines.any { it == "DEMO_BUILD=true" }
+if (demoTarget && integrationTarget) throw GradleException("Demo and integration builds must be separate")
 
 val releaseRequested = gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
 val releaseStorePath = providers.environmentVariable("CATATUANG_KEYSTORE_PATH").orNull
@@ -39,7 +41,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = if (integrationTarget) "dev.catatuang.catat_uang.integration" else "dev.catatuang.catat_uang"
+        applicationId = if (demoTarget) "dev.catatuang.catat_uang.demo" else if (integrationTarget) "dev.catatuang.catat_uang.integration" else "dev.catatuang.catat_uang"
+        manifestPlaceholders["appLabel"] = if (demoTarget) "Catat Uang Demo" else "Catat Uang"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

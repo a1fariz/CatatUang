@@ -275,7 +275,7 @@ class TransactionSyncCard extends StatelessWidget {
                       : null,
                 ),
               const Text(
-                'Dijalankan manual. Tagihan, pembayaran, dan pengaturan belum disinkronkan.',
+                'Dijalankan manual. Status di kartu ini hanya untuk transaksi. Tagihan dan pembayaran ditautkan terpisah; pengaturan tetap lokal.',
               ),
             ],
           ),

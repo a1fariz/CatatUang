@@ -362,7 +362,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Catatan').last);
     await tester.pumpAndSettle();
-    expect(find.text('Belum ada transaksi periode ini.'), findsOneWidget);
+    expect(find.text('Mulai dari satu catatan'), findsOneWidget);
     await tester.tap(find.text('Tagihan').last);
     await tester.pumpAndSettle();
     expect(find.text('Tagihan unik'), findsNothing);
