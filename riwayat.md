@@ -3,6 +3,8 @@
 ## 2026-10-28
 
 ### Demo terisolasi dan pengalaman pertama
+- Demo artifacts 40557835969 dan seluruh Mobile CI 40557832174 untuk `caad615` berhasil. Capture mencatat transaksi Rp12.345 melalui UI dengan Wi-Fi/data dimatikan, lalu memeriksa nominal setelah force-stop/reopen. Screenshot/video masih ditinjau sebelum dokumentasi penyerahan.
+- Penjelasan penautan/sukses transaksi diselaraskan agar tidak lagi menyebut tagihan selalu lokal; sinkronisasi tagihan/payment dikelola terpisah. Empat belas tes controller/demo terkait lulus. APK/media demo dibekukan pada `caad615`; perubahan teks akun berikutnya tidak aktif pada demo offline.
 - Native CI menemukan overflow 17 px saat viewport mengecil karena keyboard. Halaman Catatan diubah ke sliver scroll yang tetap merender list secara lazy; ringkasan nol tidak menutupi panduan pada ledger pertama. Regresi viewport 411×731/inset keyboard/font besar ditambahkan; 19 tes terkait serta analyzer lulus setelah perbaikan.
 - Capture pertama gagal menunggu hierarchy Android sebelum UI siap. Dump kini memakai lokasi shell sementara dan penantian terbatas dengan validasi XML. Workflow memisahkan artefak APK/media dan hanya mengizinkan reuse APK jika source aplikasi sama.
 - Tambah entrypoint demo offline dengan application ID `.demo`, label Catat Uang Demo, serta ruang data contoh/kosong terpisah. Seed atomik hanya di `catat_uang_demo.db`, tidak berulang saat reopen/clear, dan menolak database reguler. Data fiktif diberi label contoh.

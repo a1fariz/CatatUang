@@ -78,7 +78,7 @@ class TransactionSyncCard extends StatelessWidget {
         scrollable: true,
         title: const Text('Tautkan transaksi ke akun?'),
         content: Text(
-          'Catatan perangkat ini akan ditautkan ke $email. Saat Anda menekan Sinkronkan sekarang, transaksi lokal dikirim dan transaksi akun digabungkan ke perangkat. Catatan serupa yang dimasukkan terpisah dapat muncul ganda. Tagihan dan pembayaran tetap lokal. Penautan tetap tersimpan saat keluar akun.',
+          'Catatan perangkat ini akan ditautkan ke $email. Saat Anda menekan Sinkronkan sekarang, transaksi lokal dikirim dan transaksi akun digabungkan ke perangkat. Catatan serupa yang dimasukkan terpisah dapat muncul ganda. Penautan ini hanya untuk transaksi; tagihan dan pembayaran ditautkan terpisah. Penautan tetap tersimpan saat keluar akun.',
         ),
         actions: [
           TextButton(

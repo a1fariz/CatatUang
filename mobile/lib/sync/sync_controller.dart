@@ -247,7 +247,7 @@ class TransactionSyncController extends ChangeNotifier {
         await repository.finishSync(ledger.generation);
         resetRequired = false;
         message =
-            'Transaksi sudah disinkronkan. Tagihan dan pembayaran tetap lokal.';
+            'Transaksi sudah disinkronkan. Sinkronisasi tagihan dan pembayaran dikelola terpisah.';
       }
     } on SyncFailure catch (e) {
       if (e.code == 'sync_reset_required') resetRequired = true;
