@@ -62,10 +62,27 @@ void main() {
         if (register) {
           await tester.enterText(find.byType(TextFormField).at(2), password);
         }
+        // Native IME animations can resize/recycle the lazy ListView after a
+        // finder has become visible. Finish input before locating buttons.
+        FocusManager.instance.primaryFocus?.unfocus();
+        await tester.pumpAndSettle();
         await tester.ensureVisible(find.byKey(const Key('auth_submit')));
         await tester.pumpAndSettle();
         await tester.tap(find.byKey(const Key('auth_submit')));
-        await tester.pumpAndSettle(const Duration(milliseconds: 100));
+        // pumpAndSettle waits for frames, not network/Keystore completion.
+        // Wait for controller state explicitly, without resubmitting credentials.
+        final deadline = Stopwatch()..start();
+        while ((!account.hasSession || account.busy) &&
+            deadline.elapsed < const Duration(seconds: 30)) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(
+          account.hasSession,
+          isTrue,
+          reason: 'Authentication must finish',
+        );
+        expect(account.busy, isFalse);
+        await tester.pumpAndSettle();
       }
 
       try {
@@ -135,13 +152,17 @@ void main() {
         await submitCredentials(register: false);
         final active = await store.read();
         expect(active, isNotNull);
+        FocusManager.instance.primaryFocus?.unfocus();
+        await tester.pumpAndSettle();
+        final logout = find.text('Keluar dari akun').hitTestable();
         await tester.scrollUntilVisible(
-          find.text('Keluar dari akun').hitTestable(),
+          logout,
           200,
           scrollable: find.byType(Scrollable).last,
         );
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Keluar dari akun'));
+        expect(logout, findsOneWidget);
+        await tester.tap(logout);
         await tester.pumpAndSettle();
         await tester.tap(find.text('Keluar'));
         await tester.pumpAndSettle();

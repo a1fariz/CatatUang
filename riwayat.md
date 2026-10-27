@@ -2,6 +2,12 @@
 
 ## 2026-10-27
 
+### Stabilitas tes akun native dan guard emulator
+- Backend CI backup `0b2ca1f` berhasil. Mobile Android/dua ledger berhasil, native gagal pada finder tombol logout sesudah login; ini berbeda dari putusnya koneksi emulator pada run monitoring sebelumnya, yang akhirnya lulus setelah dijalankan ulang.
+- Tes akun menutup fokus keyboard sebelum mencari tombol dan menunggu sesi aktif/tidak sibuk dengan deadline setelah submit. Tidak ada retry request autentikasi. Perbaikan finder/state perlu dikonfirmasi oleh CI emulator berikutnya.
+- Enam belas tes account screen/controller lokal lulus secara serial; analyzer bersih. Sintaks Bash valid.
+- Guard memeriksa emulator benar-benar online dan query paket berhasil. Lima skenario adb mock lulus, termasuk perangkat/query gagal dan penolakan paket reguler; tidak ada akses ke perangkat nyata.
+
 ### Pemeriksaan integritas dan umur backup
 - Tambah command read-only `backup-check -in ... -max-age 24h`, tanpa database atau secret. Checksum valid/umur sehat menghasilkan JSON dan exit 0; stale/future menghasilkan ID alert dan exit 1; file/manifest rusak gagal tanpa snapshot sukses.
 - Pembacaan manifest bersama menolak JSON tambahan, data >4 KiB, dan timestamp kosong. Command masuk image aplikasi dan smoke backup PostgreSQL pada Backend CI.

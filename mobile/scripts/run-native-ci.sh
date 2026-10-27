@@ -10,9 +10,20 @@ test -f "$apk_dir/account.apk"
 test -f "$apk_dir/storage.apk"
 export ORG_GRADLE_PROJECT_catatUangIntegrationTest=true
 
-# Refuse an emulator containing the regular app, even if the runner was
-# accidentally pointed at a developer's existing device.
-test -z "$(adb -s "$device" shell pm path dev.catatuang.catat_uang | tr -d '\r')"
+# Require a responding emulator as well as the absence of the regular app.
+# A failed adb command must not be mistaken for an empty package listing.
+assert_isolated_device() {
+  local state packages
+  state=$(adb -s "$device" get-state)
+  test "${state//$'\r'/}" = device
+  packages=$(adb -s "$device" shell pm list packages dev.catatuang.catat_uang)
+  packages=${packages//$'\r'/}
+  if grep -Fxq 'package:dev.catatuang.catat_uang' <<< "$packages"; then
+    echo 'Refusing an emulator containing the regular app' >&2
+    exit 1
+  fi
+}
+assert_isolated_device
 "$api_exe" > "${RUNNER_TEMP:-/tmp}/catatuang-native-api.log" 2>&1 &
 api_pid=$!
 trap 'kill "$api_pid" 2>/dev/null || true' EXIT
@@ -27,4 +38,4 @@ timeout 8m flutter drive --no-pub --driver=test_driver/account_driver.dart --tar
 # flutter drive may uninstall its integration package after a successful run.
 # Package identity was checked in each prebuilt APK; the regular app must stay
 # absent both before and after execution.
-test -z "$(adb -s "$device" shell pm path dev.catatuang.catat_uang | tr -d '\r')"
+assert_isolated_device

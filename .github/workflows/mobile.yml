@@ -156,7 +156,9 @@ jobs:
       - run: flutter pub get
         working-directory: mobile
       - name: Build isolated integration APKs before starting emulator
-        run: bash scripts/build-native-ci.sh
+        run: |
+          bash scripts/test-native-guard.sh
+          bash scripts/build-native-ci.sh
         working-directory: mobile
       - name: Reclaim compilation space before creating disposable AVD
         run: |
