@@ -2,6 +2,12 @@
 
 ## 2026-10-27
 
+### Penutupan seluruh tahap lokal
+- Kode final `57f956c`: Backend CI 40476089593 dan Mobile CI 40476089623 berhasil. Mobile mencakup android, transaction-sync, dan native-android. Perbaikan native `aa83984` juga berhasil seluruh job pada run 40475189176.
+- APK debug lokal diperiksa ulang: SHA-256 tetap sama dan seluruh 32 source Dart cocok dengan kernel. Tidak ada pemasangan ke aplikasi reguler atau perubahan database pengguna.
+- Tambah RELEASE_READINESS.md, selaraskan rencana dan laporan verifikasi, serta rangkum kebutuhan eksternal sebelum rilis. Catatan menunggu/gagal pada progres lama dipertahankan sebagai riwayat, dengan hasil final ditampilkan di awal laporan.
+- Implementasi/pengujian lokal ditutup; hosting/domain, provider email, signing production, scheduler/monitor target, Android nyata/SAF/alarm/reboot dan iOS menunggu sarana yang belum tersedia. Tidak ada klaim rilis production atau persentase otomatis.
+
 ### Pratinjau cleanup dan laporan agregat
 - Tambah `cleanup -dry-run -json`: snapshot read-only/repeatable-read menghitung sesi, rate limit, token akun, dan mail outbox expired tanpa penghapusan. Eksekusi cleanup tetap atomik, melaporkan jumlah yang benar-benar dihapus setelah commit, dan mempertahankan wrapper service lama.
 - Empat tes PostgreSQL/race lulus: preview tidak mengubah data, eksekusi/idempotensi/hitungan, preservasi sesi/token/email aktif dan transaksi keuangan, rollback seluruh tabel saat delete terakhir gagal, serta regresi expiry/grant runtime. Vet dan build lulus. Cluster/database fixture tes dibersihkan.

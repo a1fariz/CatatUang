@@ -1,4 +1,22 @@
-# Verifikasi penuntasan — 26 Oktober 2026
+# Verifikasi Catat Uang
+
+## Penutupan tahap lokal — 27 Oktober 2026
+
+Implementasi dan verifikasi yang dapat dilakukan tanpa hosting/domain/provider/perangkat khusus selesai. Kode terakhir `57f956c`; perubahan penutup hanya dokumentasi root. Tidak ada workflow kode yang masih menunggu pada penutupan ini.
+
+| Pemeriksaan final | Hasil |
+|---|---|
+| [Backend CI 57f956c](https://github.com/a1fariz/CatatUang/actions/runs/40476089593) | Berhasil: race/PostgreSQL, vet/vulnerability, build/container, Caddy, backup/check/restore |
+| [Mobile CI 57f956c](https://github.com/a1fariz/CatatUang/actions/runs/40476089623) | Berhasil: android, transaction-sync, native-android |
+| [Konfirmasi perbaikan native aa83984](https://github.com/a1fariz/CatatUang/actions/runs/40475189176) | Berhasil seluruh job; kode final berikutnya juga lulus native |
+| APK lokal | SHA-256 sama dengan artefak di bawah; 32/32 source Dart masih cocok dengan kernel pada pemeriksaan penutupan |
+| Cleanup/monitoring/backup tambahan | Tes lokal dan suite CI final lulus; hanya fixture/clone pengujian yang diubah |
+
+Progres tambahan setelah penuntasan awal: `44052d9` SMTP round trip, `3657107` ambang monitoring email, `0b2ca1f` integritas/umur backup, `aa83984` stabilisasi akun native dan guard adb, `57f956c` dry-run/laporan cleanup. Seluruh progres sudah dipush terpisah.
+
+Lihat [penerimaan akhir dan gerbang rilis](RELEASE_READINESS.md) untuk artefak dan kebutuhan eksternal. Tahap lokal selesai tidak menyatakan deployment publik, pengiriman provider, signing production, atau pengujian perangkat nyata sudah dilakukan. Bagian berikut merupakan riwayat bukti dan status pada masing-masing progres; status menunggu/gagal di riwayat telah ditutup oleh hasil final di atas.
+
+## Riwayat verifikasi penuntasan — 26 Oktober 2026
 
 Baseline `483ce28`; kode final sebelum laporan `8c2f5c4`. Pekerjaan dilakukan per progres, masing-masing di-add, commit, dan push ke main repo privat [CatatUang](https://github.com/a1fariz/CatatUang). Tidak ada instalasi ke paket reguler pengguna, penghapusan database keuangan pengguna, deploy hosting, atau pengiriman email provider.
 
