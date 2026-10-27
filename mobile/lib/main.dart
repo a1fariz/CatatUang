@@ -93,8 +93,10 @@ class _CatatUangAppState extends State<CatatUangApp> {
     );
     return MaterialApp(
       title: 'Catat Uang',
+      debugShowCheckedModeBanner: !widget.demo,
       builder: (context, child) => widget.demo
           ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Material(
                   color: Color(0xFFFFE6B5),
@@ -115,7 +117,13 @@ class _CatatUangAppState extends State<CatatUangApp> {
                     ),
                   ),
                 ),
-                Expanded(child: child!),
+                Expanded(
+                  child: MediaQuery.removePadding(
+                    context: context,
+                    removeTop: true,
+                    child: child!,
+                  ),
+                ),
               ],
             )
           : child!,

@@ -31,6 +31,13 @@ jobs:
       - name: Prepare disposable runner
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches/modules-2/files-2.1
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-catatuang-gradle-dependencies-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/gradle/wrapper/gradle-wrapper.properties', 'mobile/pubspec.lock') }}
+          restore-keys: ${{ runner.os }}-catatuang-gradle-dependencies-
       - run: flutter pub get
       - name: Build isolated offline demo
         run: |
@@ -96,6 +103,20 @@ jobs:
           script: |
             adb -s emulator-5554 install "$RUNNER_TEMP/demo-artifacts/catat-uang-demo.apk"
             cd mobile && dart tool/capture_demo.dart emulator-5554 "$RUNNER_TEMP/demo-artifacts"
+      - name: Verify and encode two-minute presentation
+        run: |
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y ffmpeg
+          fi
+          raw="$RUNNER_TEMP/demo-artifacts/catat-uang-demo-raw.mp4"
+          final="$RUNNER_TEMP/demo-artifacts/catat-uang-demo-2menit.mp4"
+          duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$raw")
+          awk -v duration="$duration" 'BEGIN { exit !(duration >= 120) }'
+          ffmpeg -v error -y -i "$raw" -map 0:v:0 -t 120 -an -c:v libx264 -preset veryfast -crf 20 -r 30 -movflags +faststart "$final"
+          duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$final")
+          awk -v duration="$duration" 'BEGIN { exit !(duration >= 119.9 && duration <= 120.1) }'
+          ffprobe -v error -show_entries format=duration:stream=width,height -of json "$final" > "$RUNNER_TEMP/demo-artifacts/video-probe.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

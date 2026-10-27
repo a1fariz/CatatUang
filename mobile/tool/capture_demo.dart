@@ -113,6 +113,23 @@ Future<void> main(List<String> args) async {
   }
 
   Future<void> shot(String name) async {
+    final expected = <String, List<String>>{
+      '01-demo-launcher': ['Coba Catat Uang'],
+      '02-catatan-contoh': ['7,000,000', '7.000.000'],
+      '04-tagihan-contoh': ['Internet rumah'],
+      '07-offline-setelah-restart': ['12,345', '12.345'],
+      '08-panduan-pertama': ['Mulai dari satu catatan'],
+    }[name];
+    var ready = false;
+    for (var attempt = 0; attempt < 8; attempt++) {
+      final tree = await ui();
+      ready =
+          !tree.contains('Memuat transaksi') &&
+          (expected == null || expected.any(tree.contains));
+      if (ready) break;
+      await Future<void>.delayed(const Duration(seconds: 1));
+    }
+    if (!ready) throw StateError('Screen data not ready: $name');
     final result = await Process.run('adb', [
       '-s',
       device,
@@ -161,7 +178,8 @@ Future<void> main(List<String> args) async {
   await adb(['shell', 'svc', 'data', 'disable']);
   await launch();
   await shot('01-demo-launcher');
-  // This is an actual 120-second Android screenrecord, without fabricated UI.
+  // Keep raw footage longer than two minutes: Android encoder startup can
+  // shorten the file's timeline. CI verifies and trims a 120-second copy.
   final record = await Process.start('adb', [
     '-s',
     device,
@@ -172,7 +190,7 @@ Future<void> main(List<String> args) async {
     '--bit-rate',
     '2000000',
     '--time-limit',
-    '120',
+    '135',
     '/sdcard/catatuang-demo.mp4',
   ]);
   final recordStdout = record.stdout.drain<void>();
@@ -184,7 +202,7 @@ Future<void> main(List<String> args) async {
   }
 
   try {
-    await holdUntil(4);
+    await holdUntil(8);
     await tap('Jelajahi data contoh');
     await shot('02-catatan-contoh');
     final before = await ui();
@@ -225,7 +243,7 @@ Future<void> main(List<String> args) async {
     await holdUntil(104);
     await tap('Catat transaksi pertama', scroll: true);
     await shot('09-form-pertama');
-    await holdUntil(121);
+    await holdUntil(136);
     final exit = await record.exitCode.timeout(const Duration(seconds: 15));
     await recordStdout;
     await recordStderr;
@@ -233,7 +251,7 @@ Future<void> main(List<String> args) async {
     await adb([
       'pull',
       '/sdcard/catatuang-demo.mp4',
-      '${out.path}/catat-uang-demo-2menit.mp4',
+      '${out.path}/catat-uang-demo-raw.mp4',
     ]);
     await File('${out.path}/evidence.json').writeAsString(
       const JsonEncoder.withIndent('  ').convert({
@@ -241,7 +259,9 @@ Future<void> main(List<String> args) async {
         'device': device,
         'platform': 'Android emulator',
         'package': package,
-        'media': 'Unedited Android screenshots and screenrecord; no audio',
+        'media':
+            'Unedited Android screenshots and raw screenrecord; CI encodes a verified 120-second copy; no audio',
+        'raw_recording_time_limit_seconds': 135,
         'network': 'Wi-Fi and cellular disabled on disposable emulator',
         'sample_restart_persistence': true,
         'offline_transaction_created_and_retained_amount_idr': 12345,

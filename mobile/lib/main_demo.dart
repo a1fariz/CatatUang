@@ -12,7 +12,16 @@ void main() {
   if (const String.fromEnvironment('API_BASE_URL').isNotEmpty) {
     throw StateError('This sample-data demo must remain offline');
   }
-  runApp(const MaterialApp(home: DemoLauncher()));
+  runApp(
+    MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF8C4A32)),
+        scaffoldBackgroundColor: const Color(0xFFFFFAF5),
+      ),
+      home: const DemoLauncher(),
+    ),
+  );
 }
 
 class DemoLauncher extends StatefulWidget {
