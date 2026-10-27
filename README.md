@@ -2,6 +2,8 @@
 
 Aplikasi pencatat keuangan pribadi yang tetap berfungsi offline.
 
+Source code tersedia untuk peninjauan. Kredensial deployment disimpan di environment variable atau file `.env` yang diabaikan Git; salin template `.env.example` dan isi nilainya sendiri. Lihat [panduan kredensial dan pelaporan keamanan](SECURITY.md). Build development dan hasil CI tidak menyatakan aplikasi sudah dirilis untuk production.
+
 - `mobile/`: aplikasi Flutter, SQLite, transaksi, tagihan, dan pengingat lokal. Lihat [panduan mobile](mobile/README.md).
 - `backend/`: Go + PostgreSQL dengan autentikasi dan API transaksi/tagihan. Lihat [panduan backend](backend/README.md), [arsitektur](backend/docs/architecture.md), dan [kontrak HTTP](backend/docs/openapi.json).
 - `PRD.md`: ruang lingkup dan kriteria penerimaan.

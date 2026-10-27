@@ -1,0 +1,16 @@
+# Reviewed synthetic password fixtures, never deployment credentials.
+# Keep exclusions tied to exact historical findings; do not ignore test files.
+# SMTP recovery integration: wrong-old-password request against loopback test API.
+44052d9ed3365aba7d77dcb3aeb1bbf81545fb2c:backend/internal/httpapi/account_smtp_integration_test.go:generic-api-key:82
+# Account recovery integration: wrong-old-password request against test API.
+c9c272849d55c0eb6aea38646e1f0cd5be7efa72:backend/internal/httpapi/account_recovery_integration_test.go:generic-api-key:62
+# Password change integration: constant fixture for a newly created test user.
+63c6bafe27eca1ee1d260a84e953cf33df7f5d4f:backend/internal/httpapi/password_integration_test.go:generic-api-key:13
+# HTTP test client: registration/login fixtures for disposable test databases.
+d079a12405a3ea3b7a97ddf3abac7118efd4281b:backend/internal/httpapi/integration_test.go:generic-api-key:107
+d079a12405a3ea3b7a97ddf3abac7118efd4281b:backend/internal/httpapi/integration_test.go:generic-api-key:116
+d079a12405a3ea3b7a97ddf3abac7118efd4281b:backend/internal/httpapi/integration_test.go:generic-api-key:119
+# Hashing unit test: string used only to test HashPassword and VerifyPassword.
+d079a12405a3ea3b7a97ddf3abac7118efd4281b:backend/internal/service/service_test.go:generic-api-key:10
+# Flutter integration: password for a newly registered test account.
+d079a12405a3ea3b7a97ddf3abac7118efd4281b:mobile/integration_test/account_backend_test.dart:generic-api-key:44
