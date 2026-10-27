@@ -46,3 +46,9 @@ Setelah baseline penuntasan di atas, ditambahkan `TestAccountRecoverySMTPRoundTr
 ## Progres 27 Oktober 2026: monitoring dengan ambang
 
 Progres SMTP 44052d9 berhasil di [Backend CI](https://github.com/a1fariz/CatatUang/actions/runs/40355240111) dan [Mobile CI](https://github.com/a1fariz/CatatUang/actions/runs/40355240135). Tambahan berikutnya adalah ambang ops-status untuk failed mail dan umur pending sejak available_at. Unit test parsing/batas ambang serta tiga regresi PostgreSQL (monitoring, grant runtime/mail, SMTP round trip) lulus dengan race detector; vet dan build command lulus. Binary asli diuji pada database fixture: sehat exit 0/alerts kosong, pelanggaran exit 1/dua alert, dan opsi default exit 0. Fixture/cluster tes dibersihkan. Workflow untuk perubahan baru belum dinyatakan berhasil sebelum hasilnya tersedia. Lihat [operasional](backend/docs/operations.md) untuk arti exit code dan batas metrik.
+
+## Progres 27 Oktober 2026: integritas dan umur backup
+
+Command backup-check memeriksa checksum dan umur dump/manifest secara read-only tanpa database. Tes race mencakup fresh/boundary/stale/future, kerusakan dump, manifest hilang/oversize/trailing/zero-time, file kosong, dan opsi tidak valid. Vet/build lulus. Regresi PostgreSQL 18 TestServerBackupAndIsolatedRestore lulus dengan race detector setelah parser manifest diperketat. Command ditambahkan ke image dan smoke backup CI; hasil workflow baru belum diasumsikan.
+
+[Backend CI monitoring 3657107](https://github.com/a1fariz/CatatUang/actions/runs/40462156087) berhasil. [Mobile run](https://github.com/a1fariz/CatatUang/actions/runs/40462156139) sebelumnya gagal pada koneksi VM service/emulator sebelum storage selesai; akun native, Android, dan ledger berhasil. Job gagal dijalankan ulang; status terakhir masih berjalan. Bukti ini tidak diganti dengan klaim seluruh CI sudah hijau.

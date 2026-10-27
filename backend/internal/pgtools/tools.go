@@ -127,20 +127,35 @@ func Backup(ctx context.Context, raw, bin, destination string) (Manifest, error)
 	return manifest, nil
 }
 func Verify(path string) error {
+	_, err := VerifiedManifest(path)
+	return err
+}
+
+// VerifiedManifest reads a single bounded manifest and verifies its checksum.
+// It does not prove that pg_restore can restore the dump.
+func VerifiedManifest(path string) (Manifest, error) {
+	var manifest Manifest
 	file, err := os.Open(path + ".json")
 	if err != nil {
-		return errors.New("backup manifest missing")
+		return manifest, errors.New("backup manifest missing")
 	}
 	defer file.Close()
-	var manifest Manifest
-	decoder := json.NewDecoder(io.LimitReader(file, 4096))
+	data, err := io.ReadAll(io.LimitReader(file, 4097))
+	if err != nil || len(data) > 4096 {
+		return manifest, errors.New("invalid backup manifest")
+	}
+	decoder := json.NewDecoder(strings.NewReader(string(data)))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&manifest) != nil || manifest.Version != 1 || manifest.Format != "pg_dump-custom" || len(manifest.SHA256) != 64 {
-		return errors.New("invalid backup manifest")
+	if decoder.Decode(&manifest) != nil || manifest.Version != 1 || manifest.Format != "pg_dump-custom" || len(manifest.SHA256) != 64 || manifest.CreatedAt.IsZero() {
+		return Manifest{}, errors.New("invalid backup manifest")
+	}
+	var extra any
+	if decoder.Decode(&extra) != io.EOF {
+		return Manifest{}, errors.New("invalid backup manifest")
 	}
 	hash, err := Checksum(path)
 	if err != nil || hash != manifest.SHA256 {
-		return errors.New("backup checksum mismatch")
+		return Manifest{}, errors.New("backup checksum mismatch")
 	}
-	return nil
+	return manifest, nil
 }

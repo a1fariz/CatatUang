@@ -77,7 +77,9 @@ jobs:
           DATABASE_URL: postgres://catatuang:ci_only_password@127.0.0.1:5432/postgres?sslmode=disable
         run: |
           CGO_ENABLED=0 go build -o bin/backup ./cmd/backup
+          CGO_ENABLED=0 go build -o bin/backup-check ./cmd/backup-check
           CGO_ENABLED=0 go build -o bin/restore-check ./cmd/restore-check
           mkdir -p "$RUNNER_TEMP/catatuang-backups"
           docker run --rm --network host -e DATABASE_URL -e APP_ENV=test -v "$PWD/bin:/tools:ro" -v "$RUNNER_TEMP/catatuang-backups:/backups" postgres:18-bookworm /tools/backup -out /backups/ci.dump
+          docker run --rm -v "$PWD/bin:/tools:ro" -v "$RUNNER_TEMP/catatuang-backups:/backups:ro" postgres:18-bookworm /tools/backup-check -in /backups/ci.dump -max-age 24h
           docker run --rm --network host -e DATABASE_URL -e APP_ENV=test -v "$PWD/bin:/tools:ro" -v "$RUNNER_TEMP/catatuang-backups:/backups:ro" postgres:18-bookworm /tools/restore-check -in /backups/ci.dump

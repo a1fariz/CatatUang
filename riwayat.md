@@ -2,6 +2,12 @@
 
 ## 2026-10-27
 
+### Pemeriksaan integritas dan umur backup
+- Tambah command read-only `backup-check -in ... -max-age 24h`, tanpa database atau secret. Checksum valid/umur sehat menghasilkan JSON dan exit 0; stale/future menghasilkan ID alert dan exit 1; file/manifest rusak gagal tanpa snapshot sukses.
+- Pembacaan manifest bersama menolak JSON tambahan, data >4 KiB, dan timestamp kosong. Command masuk image aplikasi dan smoke backup PostgreSQL pada Backend CI.
+- Tes race mencakup fresh/exact boundary/stale/future/tamper/missing/empty/trailing/oversize/zero-time serta opsi tidak valid. Vet/build lulus. Latihan backup dan restore clone PostgreSQL 18 berisi transaksi/tagihan/pembayaran lulus setelah pengetatan manifest; source tetap utuh.
+- Backend CI monitoring `3657107` lulus. Mobile: Android dan dua ledger lulus, akun native lulus, lalu koneksi emulator hilang saat storage. Job native dijalankan ulang; hasil ulang belum dinyatakan berhasil.
+
 ### Ambang monitoring antrean email
 - CI Backend dan Mobile progres SMTP `44052d9` berhasil.
 - `ops-status` mendukung `-max-mail-failed` dan `-max-mail-age`, mempertahankan field JSON sebelumnya serta menambahkan ID alert tanpa data akun. Ambang dilampaui menghasilkan JSON dan exit nonzero; pemanggilan tanpa opsi tetap informasional.

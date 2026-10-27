@@ -23,6 +23,18 @@ Alat native memerlukan pg_dump/pg_restore PostgreSQL 18 dari PATH atau `-pg-bin`
 
 Backup menolak file yang sudah ada, memakai pg_dump custom tanpa owner/ACL, flush file, dan menulis manifest SHA-256 .json setelah sukses. File tanpa manifest sukses bukan backup terverifikasi. Checksum mendeteksi kerusakan, bukan pemalsuan bila penyerang dapat mengganti dump dan manifest. Salin keduanya ke penyimpanan yang dikonfigurasi organisasi; command tidak menghapus backup lama atau menerapkan retention otomatis.
 
+Periksa file backup secara read-only tanpa koneksi database, pg_dump/pg_restore, atau secret aplikasi:
+
+```powershell
+./scripts/go.ps1 run ./cmd/backup-check -in D:/backup/catatuang-unique.dump -max-age 24h
+```
+
+Untuk scheduler, build binary `backup-check` terlebih dahulu; command juga disertakan di image aplikasi. Pemeriksaan mengharuskan file reguler tidak kosong, manifest versi/format yang didukung, waktu pembuatan terisi, dan SHA-256 cocok. Manifest dibatasi 4 KiB; field asing, JSON tambahan, dan ukuran berlebih ditolak. Dump dibaca seluruhnya untuk checksum; perhitungkan I/O dan waktu eksekusi pada backup besar.
+
+Exit 0 berarti checksum valid dan umur sejak `created_at` tidak melebihi `-max-age` (default 24 jam, wajib positif). Umur tepat sama dengan ambang diterima. Backup terlalu lama atau timestamp masa depan menghasilkan JSON `status: alert`, `checksum_valid: true`, ID `backup_age_limit_exceeded` atau `backup_timestamp_in_future`, lalu exit 1. Timestamp masa depan perlu pemeriksaan jam host/manifest, bukan dianggap backup lebih segar. File/manifest hilang atau rusak menghasilkan exit 1 tanpa snapshot sukses. Output tidak berisi path, URL database, atau isi ledger. Simpan stdout dan stderr terpisah; pertahankan exit code saat memanggil dari scheduler. Command tidak mencari file terbaru, mengubah file, menerapkan retention, atau memasang jadwal otomatis: operator memilih pasangan dump/manifest yang diperiksa.
+
+Checksum serta umur **tidak membuktikan backup dapat direstore** dan bukan autentikasi manifest. Tetap jalankan `restore-check`, pemeriksaan sampel ledger, dan pengamanan salinan offsite. Backup yang checksum-nya cocok tetapi bukan dump PostgreSQL hanya akan terdeteksi saat latihan restore.
+
 restore-check memverifikasi checksum, membuat database UUID baru pada cluster target environment, restore dengan exit-on-error, menerapkan migrasi, memeriksa schema/jumlah ledger, melatih pencabutan sesi/token/email dan rotasi dataset, lalu menghapus **hanya database clone yang baru dibuat**. Command tidak menerima nama database tujuan restore dan tidak merestore ke database asal. Role latihan perlu CREATEDB pada cluster tes terisolasi. Jalankan latihan terhadap salinan backup secara terjadwal, simpan hasil JSON, ukur RPO/RTO nyata. Jumlah data saja tidak menggantikan pemeriksaan sampel ledger oleh pemilik data.
 
 Restore production tetap tindakan operator terencana: hentikan API/worker/semua writer, ambil backup kondisi sekarang, restore ke target yang diverifikasi, migrasi, terapkan grants, lalu dalam maintenance hapus sessions/account_tokens/mail_outbox hasil restore agar token lama tidak hidup kembali atau email terkirim ulang. Rotasi dataset melalui sync-dataset rotate-after-restore **sebelum** menerima klien. Verifikasi role/schema/HTTPS/backup lalu buka layanan. Perangkat melakukan review transaksi dan tagihan masing-masing; jangan menghapus outbox lokal. Lihat restore-sync.md dan dokumen pemulihan Flutter. Deploy biasa tidak perlu merotasi dataset.
