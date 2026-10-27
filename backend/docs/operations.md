@@ -31,6 +31,18 @@ Restore production tetap tindakan operator terencana: hentikan API/worker/semua 
 
 Jalankan `/app/ops-status` dengan runtime environment untuk JSON schema readiness, pool, jumlah/umur email pending, job gagal setelah 8 percobaan, serta sesi expired. Tidak ada alamat email/token/nominal ledger di output. Jadwalkan cleanup untuk expiry. Pantau readiness internal, HTTP 5xx/429/latency dari log JSON, umur antrean >5 menit, mail_failed >0, backup terakhir >24 jam, kapasitas disk/database, dan expiry sertifikat. Ambang ini titik awal operasional, bukan SLA yang sudah dijanjikan; pilih kanal notifikasi setelah tersedia. Belum ada layanan monitor eksternal yang dikonfigurasi.
 
+`ops-status` mendukung ambang yang dapat dipakai scheduler/monitor lokal:
+
+```powershell
+./scripts/go.ps1 run ./cmd/ops-status -max-mail-failed 0 -max-mail-age 5m
+# Dalam container production yang sudah berjalan:
+docker compose --env-file .env -f deploy/compose.production.yaml exec -T api /app/ops-status -max-mail-failed 0 -max-mail-age 5m
+```
+
+Untuk scheduler gunakan binary `ops-status` yang sudah dibangun. Exit 0 berarti pemeriksaan database/schema berhasil dan tidak ada ambang aktif yang dilampaui. Exit 1 berarti ambang terlampaui atau command gagal; bedakan melalui JSON stdout dan pesan stderr. Saat ambang dilampaui, snapshot JSON tetap dikeluarkan dengan `alerts` berisi `mail_failed_limit_exceeded` dan/atau `mail_age_limit_exceeded`. Error konfigurasi/koneksi/query tidak menghasilkan snapshot sukses. Exit nonzero harus dipertahankan oleh skrip pemanggil; jangan menganggap JSON yang ada berarti kondisi sehat.
+
+Default `-max-mail-failed -1` dan `-max-mail-age 0` menonaktifkan kedua ambang sehingga pemanggilan lama tetap bersifat informasional. Nilai sama dengan ambang diterima; hanya nilai lebih besar yang memicu alert. Umur dihitung sejak `available_at`, bukan sejak pembuatan email: retry backoff memindahkan waktu itu. Retry yang seluruhnya masih di masa depan memiliki umur 0. Pending mencakup job aktif dengan attempts <8, termasuk lease/retry; failed mencakup attempts >=8. Pesan yang sudah expired dikecualikan dari keduanya dan dibersihkan melalui cleanup. Ambang ini tidak mengukur total waktu tunggu sejak email dibuat, keberhasilan deliverability, atau kesiapan provider. Tidak ada jadwal maupun kanal notifikasi yang dipasang otomatis.
+
 `loadcheck` hanya menerima URL health numerik loopback, 10–5000 request, 1–32 concurrency, tanpa login atau mutasi:
 
 ```powershell

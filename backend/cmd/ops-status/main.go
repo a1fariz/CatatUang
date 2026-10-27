@@ -3,21 +3,40 @@ package main
 import (
 	"catatuang/backend/internal/config"
 	"catatuang/backend/internal/database"
+	"catatuang/backend/internal/opsstatus"
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"os"
 	"time"
 )
 
 func main() {
-	if err := run(); err != nil {
+	if err := run(os.Args[1:], os.Stdout); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return
+		}
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
-func run() error {
+func run(args []string, output io.Writer) error {
+	flags := flag.NewFlagSet("ops-status", flag.ContinueOnError)
+	limits := opsstatus.Limits{}
+	flags.Int64Var(&limits.MaxMailFailed, "max-mail-failed", -1, "maximum failed mail jobs; -1 disables the threshold")
+	flags.DurationVar(&limits.MaxMailAge, "max-mail-age", 0, "maximum pending mail age since available_at; 0 disables the threshold")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return errors.New("unexpected positional arguments")
+	}
+	if err := limits.Validate(); err != nil {
+		return err
+	}
 	c, err := config.Load()
 	if err != nil {
 		return err
@@ -32,14 +51,16 @@ func run() error {
 	if err = database.CheckSchema(ctx, pool); err != nil {
 		return errors.New("schema not ready")
 	}
-	var pending, failed, expired int64
-	var oldest float64
-	err = pool.QueryRow(ctx, `SELECT count(*) FILTER(WHERE expires_at>clock_timestamp() AND attempts<8),count(*) FILTER(WHERE expires_at>clock_timestamp() AND attempts>=8),COALESCE(EXTRACT(EPOCH FROM clock_timestamp()-min(available_at) FILTER(WHERE expires_at>clock_timestamp() AND attempts<8)),0),(SELECT count(*) FROM sessions WHERE expires_at<=clock_timestamp()) FROM mail_outbox`).Scan(&pending, &failed, &oldest, &expired)
+	snapshot, err := opsstatus.Collect(ctx, pool)
 	if err != nil {
 		return errors.New("operational query failed")
 	}
-	if oldest < 0 {
-		oldest = 0
+	snapshot.Alerts = snapshot.Evaluate(limits)
+	if err = json.NewEncoder(output).Encode(snapshot); err != nil {
+		return errors.New("operational output failed")
 	}
-	return json.NewEncoder(os.Stdout).Encode(map[string]any{"schema": "ready", "mail_pending": pending, "mail_failed": failed, "mail_oldest_available_age_seconds": oldest, "expired_sessions": expired, "pool_acquired": pool.Stat().AcquiredConns(), "pool_total": pool.Stat().TotalConns()})
+	if len(snapshot.Alerts) > 0 {
+		return errors.New("operational thresholds exceeded; see JSON alerts")
+	}
+	return nil
 }

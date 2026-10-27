@@ -1,5 +1,13 @@
 # Riwayat Pengerjaan
 
+## 2026-10-27
+
+### Ambang monitoring antrean email
+- CI Backend dan Mobile progres SMTP `44052d9` berhasil.
+- `ops-status` mendukung `-max-mail-failed` dan `-max-mail-age`, mempertahankan field JSON sebelumnya serta menambahkan ID alert tanpa data akun. Ambang dilampaui menghasilkan JSON dan exit nonzero; pemanggilan tanpa opsi tetap informasional.
+- Unit test dan tiga regresi PostgreSQL lulus dengan race detector; vet/build lulus. Binary CLI nyata juga lulus: kondisi sehat exit 0, pelanggaran dua ambang exit 1 dengan dua alert, serta default tetap exit 0. Database fixture dibersihkan dan cluster tes dihentikan.
+- Tambah pengujian batas ambang/parsing opsi dan PostgreSQL untuk email overdue, future retry, exhausted/expired job, serta sesi expired. Perintah operasional dan arti umur `available_at` didokumentasikan. Tidak ada scheduler atau kanal eksternal yang dipasang.
+
 ## 2026-10-26
 
 ### Uji email akun melalui SMTP nyata lokal
