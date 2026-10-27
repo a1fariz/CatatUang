@@ -2,6 +2,11 @@
 
 ## 2026-10-27
 
+### Pratinjau cleanup dan laporan agregat
+- Tambah `cleanup -dry-run -json`: snapshot read-only/repeatable-read menghitung sesi, rate limit, token akun, dan mail outbox expired tanpa penghapusan. Eksekusi cleanup tetap atomik, melaporkan jumlah yang benar-benar dihapus setelah commit, dan mempertahankan wrapper service lama.
+- Empat tes PostgreSQL/race lulus: preview tidak mengubah data, eksekusi/idempotensi/hitungan, preservasi sesi/token/email aktif dan transaksi keuangan, rollback seluruh tabel saat delete terakhir gagal, serta regresi expiry/grant runtime. Vet dan build lulus. Cluster/database fixture tes dibersihkan.
+- Tambah tes opsi CLI dan panduan batas cutoff/preview/output. Tidak ada cleanup database pengguna atau pemasangan jadwal.
+
 ### Stabilitas tes akun native dan guard emulator
 - Backend CI backup `0b2ca1f` berhasil. Mobile Android/dua ledger berhasil, native gagal pada finder tombol logout sesudah login; ini berbeda dari putusnya koneksi emulator pada run monitoring sebelumnya, yang akhirnya lulus setelah dijalankan ulang.
 - Tes akun menutup fokus keyboard sebelum mencari tombol dan menunggu sesi aktif/tidak sibuk dengan deadline setelah submit. Tidak ada retry request autentikasi. Perbaikan finder/state perlu dikonfirmasi oleh CI emulator berikutnya.

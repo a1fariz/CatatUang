@@ -193,15 +193,55 @@ func (s *Service) Logout(ctx context.Context, user, token string, all bool) erro
 
 // Maintenance is an explicit operator action, not a background request side effect.
 func (s *Service) Cleanup(ctx context.Context) error {
-	tx, err := s.Pool.Begin(ctx)
+	_, err := s.CleanupReport(ctx, false)
+	return err
+}
+
+type CleanupSummary struct {
+	DryRun         bool      `json:"dry_run"`
+	Cutoff         time.Time `json:"cutoff"`
+	Sessions       int64     `json:"sessions"`
+	AuthRateLimits int64     `json:"auth_rate_limits"`
+	AccountTokens  int64     `json:"account_tokens"`
+	MailOutbox     int64     `json:"mail_outbox"`
+}
+
+func (s *Service) CleanupReport(ctx context.Context, dryRun bool) (CleanupSummary, error) {
+	options := pgx.TxOptions{}
+	if dryRun {
+		options = pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}
+	}
+	tx, err := s.Pool.BeginTx(ctx, options)
 	if err != nil {
-		return err
+		return CleanupSummary{}, err
 	}
 	defer tx.Rollback(context.Background())
-	for _, table := range []string{"sessions", "auth_rate_limits", "account_tokens", "mail_outbox"} {
-		if _, err = tx.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE expires_at <= now()", table)); err != nil {
-			return err
+	report := CleanupSummary{DryRun: dryRun}
+	if err = tx.QueryRow(ctx, "SELECT transaction_timestamp()").Scan(&report.Cutoff); err != nil {
+		return CleanupSummary{}, err
+	}
+	for _, item := range []struct {
+		table string
+		count *int64
+	}{
+		{"sessions", &report.Sessions}, {"auth_rate_limits", &report.AuthRateLimits},
+		{"account_tokens", &report.AccountTokens}, {"mail_outbox", &report.MailOutbox},
+	} {
+		if dryRun {
+			err = tx.QueryRow(ctx, fmt.Sprintf("SELECT count(*) FROM %s WHERE expires_at <= $1", item.table), report.Cutoff).Scan(item.count)
+		} else {
+			tag, deleteErr := tx.Exec(ctx, fmt.Sprintf("DELETE FROM %s WHERE expires_at <= $1", item.table), report.Cutoff)
+			err = deleteErr
+			if err == nil {
+				*item.count = tag.RowsAffected()
+			}
+		}
+		if err != nil {
+			return CleanupSummary{}, err
 		}
 	}
-	return tx.Commit(ctx)
+	if err = tx.Commit(ctx); err != nil {
+		return CleanupSummary{}, err
+	}
+	return report, nil
 }

@@ -41,6 +41,20 @@ Restore production tetap tindakan operator terencana: hentikan API/worker/semua 
 
 ## Monitoring dan penerimaan beban
 
+### Pratinjau dan laporan cleanup
+
+Jalankan dengan environment database runtime yang sudah diperiksa:
+
+```powershell
+./scripts/go.ps1 run ./cmd/cleanup -dry-run -json
+# Setelah memeriksa pratinjau pada target yang benar:
+./scripts/go.ps1 run ./cmd/cleanup -json
+```
+
+`-dry-run` memakai transaksi PostgreSQL read-only/repeatable-read dan tidak menghapus record. JSON berisi `dry_run`, `cutoff` dari waktu transaksi database, serta jumlah `sessions`, `auth_rate_limits`, `account_tokens`, dan `mail_outbox` yang kedaluwarsa pada cutoff. Eksekusi tanpa `-dry-run` tetap perilaku lama: menghapus record expired dalam satu transaksi, lalu mengeluarkan hitungan aktual sesudah commit. Flag `-json` opsional; tanpa flag itu output berupa ringkasan teks. Error mengembalikan exit nonzero. Jika operasi database gagal pada tabel mana pun, seluruh penghapusan di-rollback dan tidak ada laporan sukses parsial.
+
+Pratinjau bukan penguncian/persetujuan untuk eksekusi berikutnya: akun, antrean, dan waktu expiry dapat berubah sehingga hitungan aktual bisa berbeda. Tabel ledger, history pembayaran, serta record autentikasi yang masih aktif tidak termasuk penghapusan. Tidak ada alamat email, token, password, atau nominal keuangan di laporan. Command tidak menghapus backup file dan tidak memasang jadwal. Gunakan binary yang sudah dibangun untuk scheduler, simpan hasil agregat, dan pertahankan exit code. Gagal menulis output setelah commit tidak membatalkan penghapusan yang sudah berhasil; periksa ulang status bila hasil pemanggilan tidak pasti.
+
 Jalankan `/app/ops-status` dengan runtime environment untuk JSON schema readiness, pool, jumlah/umur email pending, job gagal setelah 8 percobaan, serta sesi expired. Tidak ada alamat email/token/nominal ledger di output. Jadwalkan cleanup untuk expiry. Pantau readiness internal, HTTP 5xx/429/latency dari log JSON, umur antrean >5 menit, mail_failed >0, backup terakhir >24 jam, kapasitas disk/database, dan expiry sertifikat. Ambang ini titik awal operasional, bukan SLA yang sudah dijanjikan; pilih kanal notifikasi setelah tersedia. Belum ada layanan monitor eksternal yang dikonfigurasi.
 
 `ops-status` mendukung ambang yang dapat dipakai scheduler/monitor lokal:

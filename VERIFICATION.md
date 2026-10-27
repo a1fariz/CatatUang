@@ -56,3 +56,7 @@ Command backup-check memeriksa checksum dan umur dump/manifest secara read-only 
 ## Progres 27 Oktober 2026: stabilitas native CI
 
 Backend CI backup 0b2ca1f berhasil: https://github.com/a1fariz/CatatUang/actions/runs/40464935065. Android dan dua ledger Mobile berhasil, tetapi native gagal menemukan tombol logout setelah login (run 40464935008). Run monitoring 40462156139 yang sebelumnya kehilangan koneksi akhirnya berhasil setelah pengulangan. Tes akun diperbaiki dengan penantian state sesi/deadline dan stabilisasi fokus keyboard; konfirmasi native pada perubahan ini menunggu CI. Guard emulator juga diperketat agar adb gagal tidak dianggap paket reguler tidak ada. Enam belas tes screen/controller akun lokal lulus secara serial dan analyzer bersih. Lima skenario adb mock lulus tanpa perangkat nyata; sintaks Bash valid.
+
+## Progres 27 Oktober 2026: pratinjau cleanup
+
+Cleanup sekarang mendukung dry-run read-only/repeatable-read dan JSON agregat dengan cutoff database. Eksekusi melaporkan hitungan aktual hanya sesudah transaksi berhasil; wrapper Cleanup lama tetap kompatibel. Empat regresi PostgreSQL/race lulus (preview/counts/idempotensi/preservasi data, rollback semua tabel, expiry, grant runtime/mail), tes opsi CLI lulus, vet/build lulus. Tidak ada cleanup pada database pengguna atau jadwal yang dipasang. Pratinjau dan eksekusi terpisah dapat memiliki hitungan berbeda karena data/waktu berubah. Native CI aa83984 masih berjalan pada pemeriksaan terakhir; hasilnya belum diklaim lulus.
